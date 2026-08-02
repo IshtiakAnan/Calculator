@@ -153,13 +153,13 @@
       <button class="btn btn-number" data-action="number" data-value="7">7</button>
       <button class="btn btn-number" data-action="number" data-value="8">8</button>
       <button class="btn btn-number" data-action="number" data-value="9">9</button>
-      <button class="btn btn-function btn-disabled" data-action="power">x²</button>
+      <button class="btn btn-function" data-action="power">x²</button>
       <button class="btn btn-operator" data-action="operator" data-value="*">&times;</button>
 
       <button class="btn btn-number" data-action="number" data-value="4">4</button>
       <button class="btn btn-number" data-action="number" data-value="5">5</button>
       <button class="btn btn-number" data-action="number" data-value="6">6</button>
-      <button class="btn btn-function btn-disabled" data-action="sqrt">&radic;</button>
+      <button class="btn btn-function" data-action="sqrt">&radic;</button>
       <button class="btn btn-operator" data-action="operator" data-value="-">&minus;</button>
 
       <button class="btn btn-number" data-action="number" data-value="1">1</button>
@@ -299,6 +299,26 @@
       updateDisplay();
     }
 
+    function applyFunction(func) {
+      const value = parseFloat(currentInput);
+      let result;
+
+      switch (func) {
+        case 'power':
+          result = value * value;
+          break;
+        case 'sqrt':
+          result = Math.sqrt(value);
+          break;
+        default:
+          return;
+      }
+
+      currentInput = formatResult(result);
+      shouldResetScreen = true;
+      updateDisplay();
+    }
+
     document.querySelectorAll('.btn').forEach(button => {
       button.addEventListener('click', () => {
         const action = button.dataset.action;
@@ -326,6 +346,10 @@
             break;
           case 'backspace':
             backspace();
+            break;
+          case 'power':
+          case 'sqrt':
+            applyFunction(action);
             break;
         }
       });
