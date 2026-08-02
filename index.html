@@ -140,14 +140,14 @@
     <div class="buttons">
       <button class="btn btn-function" data-action="clear">C</button>
       <button class="btn btn-function" data-action="backspace">⌫</button>
-      <button class="btn btn-function btn-disabled" data-action="parenthesis">(</button>
-      <button class="btn btn-function btn-disabled" data-action="parenthesis">)</button>
+      <button class="btn btn-function" data-action="parenthesis" data-value="(">(</button>
+      <button class="btn btn-function" data-action="parenthesis" data-value=")">)</button>
       <button class="btn btn-function" data-action="percent">%</button>
 
       <button class="btn btn-function btn-disabled" data-action="sin">sin</button>
       <button class="btn btn-function btn-disabled" data-action="cos">cos</button>
       <button class="btn btn-function btn-disabled" data-action="tan">tan</button>
-      <button class="btn btn-function btn-disabled" data-action="log">log</button>
+      <button class="btn btn-function" data-action="log">log</button>
       <button class="btn btn-operator" data-action="operator" data-value="/">&divide;</button>
 
       <button class="btn btn-number" data-action="number" data-value="7">7</button>
@@ -178,171 +178,265 @@
     const expressionEl = document.getElementById('expression');
     const resultEl = document.getElementById('result');
 
+    let currentExpression = '';
     let currentInput = '0';
-    let previousInput = '';
-    let operator = null;
     let shouldResetScreen = false;
-    let expression = '';
+    let lastInputType = '';
 
     function updateDisplay() {
       resultEl.textContent = currentInput;
+      expressionEl.textContent = currentExpression;
+    }
+
+    function isOperator(char) {
+      return ['+', '-', '*', '/'].includes(char);
+    }
+
+    function getLastChar() {
+      return currentExpression.slice(-1);
     }
 
     function appendNumber(number) {
-      if (currentInput === '0' || shouldResetScreen) {
+      if (lastInputType === 'equals' || currentInput === '0' && currentExpression === '' || shouldResetScreen || lastInputType === 'operator' || lastInputType === 'left-paren') {
+        if (lastInputType === 'equals') {
+          currentExpression = number;
+        } else if (isOperator(getLastChar()) || getLastChar() === '(' || currentExpression === '') {
+          currentExpression += number;
+        }
         currentInput = number;
-        shouldResetScreen = false;
       } else {
-        currentInput += number;
+        currentExpression += number;
+        currentInput = currentInput === '0' ? number : currentInput + number;
       }
+
+      shouldResetScreen = false;
+      lastInputType = 'number';
       updateDisplay();
     }
 
     function appendDecimal() {
-      if (shouldResetScreen) {
+      if (lastInputType === 'equals' || shouldResetScreen || currentExpression === '' || isOperator(getLastChar()) || getLastChar() === '(') {
+        currentExpression += '0.';
         currentInput = '0.';
-        shouldResetScreen = false;
+      } else if (!currentInput.includes('.')) {
+        currentExpression += '.';
+        currentInput += '.';
+      }
+
+      shouldResetScreen = false;
+      lastInputType = 'number';
+      updateDisplay();
+    }
+
+    function appendParenthesis(value) {
+      const openCount = (currentExpression.match(/\(/g) || []).length;
+      const closeCount = (currentExpression.match(/\)/g) || []).length;
+
+      if (value === '(') {
+        if (lastInputType === 'number' || lastInputType === 'right-paren') {
+          currentExpression += '*(';
+        } else {
+          currentExpression += '(';
+        }
+        currentInput = '(';
+        lastInputType = 'left-paren';
+      } else {
+        if (openCount > closeCount && lastInputType !== 'operator' && lastInputType !== 'left-paren' && currentExpression !== '') {
+          currentExpression += ')';
+          currentInput = ')';
+          lastInputType = 'right-paren';
+          shouldResetScreen = true;
+        }
+      }
+
+      updateDisplay();
+    }
+
+    function setOperator(op) {
+      if (currentExpression === '' && op === '-') {
+        currentExpression = '-';
+        currentInput = '-';
+        lastInputType = 'number';
         updateDisplay();
         return;
       }
-      if (!currentInput.includes('.')) {
-        currentInput += '.';
-        updateDisplay();
-      }
-    }
 
-    function applyPercent() {
-      if (currentInput === 'Error') return;
-      const curr = parseFloat(currentInput);
-      if (isNaN(curr)) return;
-
-      if (operator !== null && previousInput !== '') {
-        const prev = parseFloat(previousInput);
-        currentInput = formatResult((prev * curr) / 100);
+      if (lastInputType === 'operator') {
+        currentExpression = currentExpression.slice(0, -1) + op;
+      } else if (lastInputType === 'left-paren') {
+        if (op === '-') {
+          currentExpression += '-';
+          currentInput = '-';
+          lastInputType = 'number';
+          updateDisplay();
+          return;
+        }
+        return;
+      } else if (lastInputType === 'equals') {
+        currentExpression = currentInput + op;
       } else {
-        currentInput = formatResult(curr / 100);
+        currentExpression += op;
       }
 
-      shouldResetScreen = true;
+      currentInput = op;
+      shouldResetScreen = false;
+      lastInputType = 'operator';
       updateDisplay();
-      updateExpression();
-    }
-
-    
-
-    function setOperator(op) {
-      if (operator !== null && !shouldResetScreen) {
-        calculate();
-      }
-      previousInput = currentInput;
-      operator = op;
-      shouldResetScreen = true;
-      updateExpression();
     }
 
     function calculate() {
-      if (operator === null || shouldResetScreen && previousInput === '') return;
+      if (currentExpression === '' || lastInputType === 'operator' || lastInputType === 'left-paren') return;
 
-      const prev = parseFloat(previousInput);
-      const curr = parseFloat(currentInput);
-      let result;
+      const openCount = (currentExpression.match(/\(/g) || []).length;
+      const closeCount = (currentExpression.match(/\)/g) || []).length;
+      const expressionToEval = currentExpression + ')'.repeat(openCount - closeCount);
 
-      switch (operator) {
-        
-        case '+':
-          result = prev + curr;
-          break;
-        case '-':
-          result = prev - curr;
-          break;
-        case '*':
-          result = prev * curr;
-          break;
-        case '/':
-          if (curr === 0) {
-            currentInput = 'Error';
-            operator = null;
-            previousInput = '';
-            expression = '';
-            updateDisplay();
-            updateExpression();
-            return;
-          }
-          result = prev / curr;
-          break;
-        default:
-          return;
+      try {
+        const result = eval(expressionToEval);
+        if (result === Infinity || result === -Infinity || Number.isNaN(result)) {
+          throw new Error('Invalid result');
+        }
+
+        currentInput = formatResult(result);
+        currentExpression = currentInput;
+        lastInputType = 'equals';
+        shouldResetScreen = true;
+      } catch (error) {
+        currentInput = 'Error';
+        currentExpression = '';
+        lastInputType = '';
+        shouldResetScreen = true;
       }
 
-      currentInput = formatResult(result);
-      operator = null;
-      previousInput = '';
-      shouldResetScreen = true;
-      expression = '';
       updateDisplay();
-      updateExpression();
     }
 
     function formatResult(num) {
+      if (!Number.isFinite(num)) {
+        return 'Error';
+      }
       if (Number.isInteger(num)) {
         return num.toString();
       }
       return parseFloat(num.toPrecision(10)).toString();
     }
 
-    function updateExpression() {
-      if (operator) {
-        expression = previousInput + ' ' + operator;
-      } else {
-        expression = '';
-      }
-      expressionEl.textContent = expression;
-    }
-
     function clear() {
+      currentExpression = '';
       currentInput = '0';
-      previousInput = '';
-      operator = null;
       shouldResetScreen = false;
-      expression = '';
+      lastInputType = '';
       updateDisplay();
-      updateExpression();
     }
 
     function backspace() {
-      if (shouldResetScreen) return;
-      if (currentInput.length === 1 || (currentInput.length === 2 && currentInput.startsWith('-'))) {
-        currentInput = '0';
-      } else {
-        currentInput = currentInput.slice(0, -1);
+      if (currentInput === 'Error') {
+        clear();
+        return;
       }
+
+      currentExpression = currentExpression.slice(0, -1);
+      if (currentExpression === '') {
+        currentInput = '0';
+        lastInputType = '';
+        updateDisplay();
+        return;
+      }
+
+      const lastChar = getLastChar();
+      if (isOperator(lastChar)) {
+        currentInput = lastChar;
+        lastInputType = 'operator';
+      } else if (lastChar === '(') {
+        currentInput = '(';
+        lastInputType = 'left-paren';
+      } else if (lastChar === ')') {
+        currentInput = ')';
+        lastInputType = 'right-paren';
+      } else {
+        const token = currentExpression.match(/(?:Math\.PI|\d+(?:\.\d+)?)+$/);
+        currentInput = token ? token[0] : currentExpression;
+        lastInputType = /\d|Math\.PI/.test(lastChar) ? 'number' : '';
+      }
+
       updateDisplay();
     }
+
     function square() {
-  const num = parseFloat(currentInput);
-  currentInput = formatResult(Math.pow(num, 2));
-  shouldResetScreen = true;
-  updateDisplay();
-}
+      if (currentInput === 'Error') return;
+      const num = parseFloat(currentInput);
+      const squared = Math.pow(num, 2);
+      currentInput = formatResult(squared);
+      currentExpression = currentInput;
+      shouldResetScreen = true;
+      lastInputType = 'equals';
+      updateDisplay();
+    }
 
-function insertPi() {
-  currentInput = formatResult(Math.PI);
-  shouldResetScreen = true;
-  updateDisplay();
-}
+    function insertPi() {
+      if (lastInputType === 'number' || lastInputType === 'right-paren') {
+        currentExpression += '*Math.PI';
+      } else {
+        currentExpression += 'Math.PI';
+      }
+      currentInput = 'π';
+      shouldResetScreen = false;
+      lastInputType = 'number';
+      updateDisplay();
+    }
 
-function squareRoot() {
-  const num = parseFloat(currentInput);
+    function squareRoot() {
+      if (currentInput === 'Error') return;
+      const num = parseFloat(currentInput);
+      if (num < 0) {
+        currentInput = 'Error';
+        currentExpression = '';
+      } else {
+        currentInput = formatResult(Math.sqrt(num));
+        currentExpression = currentInput;
+      }
+      shouldResetScreen = true;
+      lastInputType = 'equals';
+      updateDisplay();
+    }
 
-  if (num < 0) {
-    currentInput = "Error";
-  } else {
-    currentInput = formatResult(Math.sqrt(num));
-  }
+    function logarithm() {
+      if (currentInput === 'Error') return;
+      const num = parseFloat(currentInput);
+      if (num <= 0) {
+        currentInput = 'Error';
+        currentExpression = '';
+      } else {
+        currentInput = formatResult(Math.log10(num));
+        currentExpression = currentInput;
+      }
+      shouldResetScreen = true;
+      lastInputType = 'equals';
+      updateDisplay();
+    }
 
-  shouldResetScreen = true;
-  updateDisplay();
-}
+    function applyPercent() {
+      if (currentExpression === '' || lastInputType === 'operator' || lastInputType === 'left-paren') return;
+
+      if (currentExpression.endsWith(')')) {
+        currentExpression += '/100';
+      } else {
+        currentExpression = currentExpression.replace(/(Math\.PI|\d+(?:\.\d+)?)$/,'($1/100)');
+      }
+
+      try {
+        currentInput = formatResult(eval(currentExpression));
+        lastInputType = 'number';
+        shouldResetScreen = true;
+      } catch (error) {
+        currentInput = 'Error';
+        currentExpression = '';
+        lastInputType = '';
+        shouldResetScreen = true;
+      }
+
+      updateDisplay();
+    }
 
     document.querySelectorAll('.btn').forEach(button => {
       button.addEventListener('click', () => {
@@ -363,6 +457,9 @@ function squareRoot() {
 case 'sqrt':
     squareRoot();
     break;
+    case 'log':
+    logarithm();
+    break;
           case 'number':
             appendNumber(value);
             break;
@@ -371,6 +468,9 @@ case 'sqrt':
             break;
           case 'operator':
             setOperator(value);
+            break;
+          case 'parenthesis':
+            appendParenthesis(value);
             break;
           case 'equals':
             calculate();
@@ -398,6 +498,10 @@ case 'sqrt':
         appendDecimal();
       } else if (e.key === '%') {
         applyPercent();
+      } else if (e.key === '(') {
+        appendParenthesis('(');
+      } else if (e.key === ')') {
+        appendParenthesis(')');
       } else if (e.key === '+') {
         setOperator('+');
       } else if (e.key === '-') {
