@@ -49,7 +49,3 @@ Calculator/
 ├── index.html    # Main application
 └── README.md     # This file
 ```
-
-## License
-
-MIT
