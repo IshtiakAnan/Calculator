@@ -7,6 +7,11 @@ A sleek, modern scientific calculator built with HTML, CSS, and JavaScript.
 - **Basic Arithmetic** — Addition, Subtraction, Multiplication, Division
 - **Square** — Compute the square of any number (x²)
 - **Square Root** — Compute the square root of any number (√)
+- **Trigonometry** — sin, cos, tan (degree-based)
+- **Logarithm** — Base-10 logarithm (log)
+- **Pi** — Insert the value of π (3.14159...)
+- **Percent** — Convert a number to its percentage
+- **Parentheses** — Support for grouped expressions
 - **Responsive UI** — Clean dark theme with smooth interactions
 - **Keyboard Support** — Use your keyboard for quick input
 
