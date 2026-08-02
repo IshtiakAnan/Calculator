@@ -142,7 +142,7 @@
       <button class="btn btn-function" data-action="backspace">⌫</button>
       <button class="btn btn-function btn-disabled" data-action="parenthesis">(</button>
       <button class="btn btn-function btn-disabled" data-action="parenthesis">)</button>
-      <button class="btn btn-function btn-disabled" data-action="percent">%</button>
+      <button class="btn btn-function" data-action="percent">%</button>
 
       <button class="btn btn-function btn-disabled" data-action="sin">sin</button>
       <button class="btn btn-function btn-disabled" data-action="cos">cos</button>
@@ -153,19 +153,19 @@
       <button class="btn btn-number" data-action="number" data-value="7">7</button>
       <button class="btn btn-number" data-action="number" data-value="8">8</button>
       <button class="btn btn-number" data-action="number" data-value="9">9</button>
-      <button class="btn btn-function btn-disabled" data-action="power">x²</button>
+      <button class="btn btn-function" data-action="power">x²</button>
       <button class="btn btn-operator" data-action="operator" data-value="*">&times;</button>
 
       <button class="btn btn-number" data-action="number" data-value="4">4</button>
       <button class="btn btn-number" data-action="number" data-value="5">5</button>
       <button class="btn btn-number" data-action="number" data-value="6">6</button>
-      <button class="btn btn-function btn-disabled" data-action="sqrt">&radic;</button>
+     <button class="btn btn-function" data-action="sqrt">&radic;</button>
       <button class="btn btn-operator" data-action="operator" data-value="-">&minus;</button>
 
       <button class="btn btn-number" data-action="number" data-value="1">1</button>
       <button class="btn btn-number" data-action="number" data-value="2">2</button>
       <button class="btn btn-number" data-action="number" data-value="3">3</button>
-      <button class="btn btn-function btn-disabled" data-action="pi">&pi;</button>
+<button class="btn btn-function" data-action="pi">&pi;</button>
       <button class="btn btn-operator" data-action="operator" data-value="+">&plus;</button>
 
       <button class="btn btn-number" data-action="number" data-value="0">0</button>
@@ -211,6 +211,25 @@
       }
     }
 
+    function applyPercent() {
+      if (currentInput === 'Error') return;
+      const curr = parseFloat(currentInput);
+      if (isNaN(curr)) return;
+
+      if (operator !== null && previousInput !== '') {
+        const prev = parseFloat(previousInput);
+        currentInput = formatResult((prev * curr) / 100);
+      } else {
+        currentInput = formatResult(curr / 100);
+      }
+
+      shouldResetScreen = true;
+      updateDisplay();
+      updateExpression();
+    }
+
+    
+
     function setOperator(op) {
       if (operator !== null && !shouldResetScreen) {
         calculate();
@@ -229,6 +248,7 @@
       let result;
 
       switch (operator) {
+        
         case '+':
           result = prev + curr;
           break;
@@ -298,6 +318,31 @@
       }
       updateDisplay();
     }
+    function square() {
+  const num = parseFloat(currentInput);
+  currentInput = formatResult(Math.pow(num, 2));
+  shouldResetScreen = true;
+  updateDisplay();
+}
+
+function insertPi() {
+  currentInput = formatResult(Math.PI);
+  shouldResetScreen = true;
+  updateDisplay();
+}
+
+function squareRoot() {
+  const num = parseFloat(currentInput);
+
+  if (num < 0) {
+    currentInput = "Error";
+  } else {
+    currentInput = formatResult(Math.sqrt(num));
+  }
+
+  shouldResetScreen = true;
+  updateDisplay();
+}
 
     document.querySelectorAll('.btn').forEach(button => {
       button.addEventListener('click', () => {
@@ -309,6 +354,15 @@
         }
 
         switch (action) {
+          case 'power':
+    square();
+    break;
+
+
+
+case 'sqrt':
+    squareRoot();
+    break;
           case 'number':
             appendNumber(value);
             break;
@@ -323,9 +377,15 @@
             break;
           case 'clear':
             clear();
-            break;
+            break;  
           case 'backspace':
             backspace();
+            break;
+          case 'percent':
+            applyPercent();
+            break;
+          case 'pi':
+            insertPi();
             break;
         }
       });
@@ -336,6 +396,8 @@
         appendNumber(e.key);
       } else if (e.key === '.') {
         appendDecimal();
+      } else if (e.key === '%') {
+        applyPercent();
       } else if (e.key === '+') {
         setOperator('+');
       } else if (e.key === '-') {
