@@ -35,10 +35,11 @@
       padding: 20px;
       margin-bottom: 16px;
       text-align: right;
-      min-height: 100px;
+      min-height: 110px;
       display: flex;
       flex-direction: column;
-      justify-content: flex-end;
+      justify-content: space-between;
+      overflow: hidden;
     }
 
     .display .expression {
@@ -46,6 +47,8 @@
       font-size: 16px;
       min-height: 24px;
       word-break: break-all;
+      overflow-x: auto;
+      white-space: nowrap;
     }
 
     .display .result {
@@ -53,6 +56,8 @@
       font-size: 36px;
       font-weight: 300;
       word-break: break-all;
+      overflow-x: auto;
+      white-space: nowrap;
     }
 
     .buttons {
@@ -62,7 +67,7 @@
     }
 
     .btn {
-      padding: 18px;
+      padding: 18px 0;
       border: none;
       border-radius: 12px;
       font-size: 18px;
@@ -70,6 +75,7 @@
       transition: all 0.15s ease;
       font-weight: 500;
       outline: none;
+      user-select: none;
     }
 
     .btn:active {
@@ -111,25 +117,6 @@
     .btn-equals:hover {
       background: #6aedb8;
     }
-
-    .btn-clear {
-      background: #533a71;
-      color: #e0e0e0;
-    }
-
-    .btn-clear:hover {
-      background: #6b4d8a;
-    }
-
-    .btn-zero {
-      grid-column: span 2;
-    }
-
-    .btn-disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
   </style>
 </head>
 
@@ -146,22 +133,22 @@
       <button class="btn btn-function" data-action="parenthesis" data-value=")">)</button>
       <button class="btn btn-function" data-action="percent">%</button>
 
-      <button class="btn btn-function" data-action="sin">sin</button>
-      <button class="btn btn-function" data-action="cos">cos</button>
-      <button class="btn btn-function" data-action="tan">tan</button>
-      <button class="btn btn-function btn-disabled" data-action="log">log</button>
+      <button class="btn btn-function" data-action="function" data-value="sin">sin</button>
+      <button class="btn btn-function" data-action="function" data-value="cos">cos</button>
+      <button class="btn btn-function" data-action="function" data-value="tan">tan</button>
+      <button class="btn btn-function" data-action="function" data-value="log">log</button>
       <button class="btn btn-operator" data-action="operator" data-value="/">&divide;</button>
 
       <button class="btn btn-number" data-action="number" data-value="7">7</button>
       <button class="btn btn-number" data-action="number" data-value="8">8</button>
       <button class="btn btn-number" data-action="number" data-value="9">9</button>
-      <button class="btn btn-function" data-action="power">x²</button>
+      <button class="btn btn-function" data-action="operator" data-value="^">x²</button>
       <button class="btn btn-operator" data-action="operator" data-value="*">&times;</button>
 
       <button class="btn btn-number" data-action="number" data-value="4">4</button>
       <button class="btn btn-number" data-action="number" data-value="5">5</button>
       <button class="btn btn-number" data-action="number" data-value="6">6</button>
-      <button class="btn btn-function" data-action="sqrt">&radic;</button>
+      <button class="btn btn-function" data-action="function" data-value="sqrt">&radic;</button>
       <button class="btn btn-operator" data-action="operator" data-value="-">&minus;</button>
 
       <button class="btn btn-number" data-action="number" data-value="1">1</button>
@@ -172,7 +159,7 @@
 
       <button class="btn btn-number" data-action="number" data-value="0">0</button>
       <button class="btn btn-number" data-action="decimal">.</button>
-      <button class="btn btn-equals" data-action="equals" style="grid-column: span 2;">=</button>
+      <button class="btn btn-equals" data-action="equals" style="grid-column: span 3;">=</button>
     </div>
   </div>
 
@@ -180,433 +167,324 @@
     const expressionEl = document.getElementById('expression');
     const resultEl = document.getElementById('result');
 
-    let currentExpression = '';
-    let currentInput = '0';
-    let shouldResetScreen = false;
-    let expression = '';
-    let isTypingTrig = false;
-    let operator = null;
-    let previousInput = '';
-    let lastInputType = '';
+    let exprTokens = [];
+    let isEvaluated = false;
 
     function updateDisplay() {
-      if (isTypingTrig) {
-        expressionEl.textContent = '';
-        resultEl.textContent = expression;
-        resultEl.style.fontSize = '42px';
-      } else {
-        expressionEl.textContent = expression;
-        resultEl.textContent = currentInput;
-        resultEl.style.fontSize = '36px';
+      const displayStr = exprTokens.map(t => {
+        if (t === '*') return '×';
+        if (t === '/') return '÷';
+        if (t === '-') return '−';
+        if (t === 'sqrt(') return '√(';
+        if (t === 'PI') return 'π';
+        return t;
+      }).join(' ');
+
+      expressionEl.textContent = isEvaluated ? displayStr + ' =' : '';
+      
+      if (!isEvaluated) {
+        resultEl.textContent = displayStr || '0';
       }
     }
 
     function formatResult(num) {
-      if (Math.abs(num) < 1e-12) {
-        return '0';
-      }
+      if (isNaN(num) || !isFinite(num)) return 'Error';
+      if (Math.abs(num) < 1e-12) return '0';
       const rounded = Math.round(num);
-      if (Math.abs(num - rounded) < 1e-12) {
-        return rounded.toString();
-      }
+      if (Math.abs(num - rounded) < 1e-12) return rounded.toString();
       return parseFloat(num.toFixed(10)).toString();
     }
 
-    function evaluateExpression(expr) {
-      const match = expr.match(/^(sin|cos|tan)\((.+)$/);
-      if (match) {
-        const func = match[1];
-        const valueStr = match[2];
-        if (valueStr === '') return NaN;
-        const value = parseFloat(valueStr);
-        if (isNaN(value)) return NaN;
-        const radians = value * (Math.PI / 180);
-        switch (func) {
-          case 'sin': return Math.sin(radians);
-          case 'cos': return Math.cos(radians);
-          case 'tan': return Math.tan(radians);
-          default: return NaN;
+    // --- Expression Parser & Evaluator (Shunting-Yard) ---
+    function evaluateTokens(tokens) {
+      if (tokens.length === 0) return 0;
+
+      const outputQueue = [];
+      const operatorStack = [];
+
+      const precedence = { '+': 1, '-': 1, '*': 2, '/': 2, '^': 3, '%': 2 };
+      const rightAssociative = { '^': true };
+
+      const isNumber = str => !isNaN(parseFloat(str)) || str === 'PI';
+      const isFunction = str => ['sin(', 'cos(', 'tan(', 'log(', 'sqrt('].includes(str);
+      const isOperator = str => ['+', '-', '*', '/', '^', '%'].includes(str);
+
+      for (let i = 0; i < tokens.length; i++) {
+        let token = tokens[i];
+
+        if (isNumber(token)) {
+          outputQueue.push(token === 'PI' ? Math.PI : parseFloat(token));
+        } else if (isFunction(token)) {
+          operatorStack.push(token);
+        } else if (isOperator(token)) {
+          // Check for unary minus
+          if (token === '-' && (i === 0 || tokens[i - 1] === '(' || isOperator(tokens[i - 1]))) {
+            outputQueue.push(0); // Insert 0 before unary minus: e.g. -5 -> 0 - 5
+          }
+          while (
+            operatorStack.length > 0 &&
+            isOperator(operatorStack[operatorStack.length - 1]) &&
+            ((!rightAssociative[token] && precedence[token] <= precedence[operatorStack[operatorStack.length - 1]]) ||
+              (rightAssociative[token] && precedence[token] < precedence[operatorStack[operatorStack.length - 1]]))
+          ) {
+            outputQueue.push(operatorStack.pop());
+          }
+          operatorStack.push(token);
+        } else if (token === '(') {
+          operatorStack.push(token);
+        } else if (token === ')') {
+          while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] !== '(') {
+            outputQueue.push(operatorStack.pop());
+          }
+          if (operatorStack.length === 0) throw new Error("Mismatched parentheses");
+          operatorStack.pop(); // Pop '('
+
+          if (operatorStack.length > 0 && isFunction(operatorStack[operatorStack.length - 1])) {
+            outputQueue.push(operatorStack.pop());
+          }
         }
       }
-      return parseFloat(expr);
+
+      while (operatorStack.length > 0) {
+        const top = operatorStack.pop();
+        if (top === '(' || top === ')') throw new Error("Mismatched parentheses");
+        outputQueue.push(top);
+      }
+
+      // Evaluate RPN
+      const evalStack = [];
+      for (let token of outputQueue) {
+        if (typeof token === 'number') {
+          evalStack.push(token);
+        } else if (isOperator(token)) {
+          if (evalStack.length < 2) throw new Error("Invalid expression");
+          const b = evalStack.pop();
+          const a = evalStack.pop();
+          switch (token) {
+            case '+': evalStack.push(a + b); break;
+            case '-': evalStack.push(a - b); break;
+            case '*': evalStack.push(a * b); break;
+            case '/': 
+              if (b === 0) throw new Error("Divide by zero");
+              evalStack.push(a / b); 
+              break;
+            case '^': evalStack.push(Math.pow(a, b)); break;
+            case '%': evalStack.push(a % b); break;
+          }
+        } else if (isFunction(token)) {
+          if (evalStack.length < 1) throw new Error("Invalid function argument");
+          const arg = evalStack.pop();
+          switch (token) {
+            case 'sin(': evalStack.push(Math.sin(arg * Math.PI / 180)); break;
+            case 'cos(': evalStack.push(Math.cos(arg * Math.PI / 180)); break;
+            case 'tan(': evalStack.push(Math.tan(arg * Math.PI / 180)); break;
+            case 'log(': 
+              if (arg <= 0) throw new Error("Invalid log argument");
+              evalStack.push(Math.log10(arg)); 
+              break;
+            case 'sqrt(': 
+              if (arg < 0) throw new Error("Invalid sqrt argument");
+              evalStack.push(Math.sqrt(arg)); 
+              break;
+          }
+        }
+      }
+
+      if (evalStack.length !== 1) throw new Error("Invalid expression");
+      return evalStack[0];
     }
 
-    function appendNumber(number) {
-      if (shouldResetScreen) {
-        if (expression.match(/^(sin|cos|tan)\($/)) {
-          currentInput = number;
-          expression += number;
-        } else {
-          currentInput = number;
-          expression = currentInput;
-        }
-        shouldResetScreen = false;
-      } else {
-        if (currentInput === '0' && number !== '.') {
-          currentInput = number;
-          if (expression.match(/^(sin|cos|tan)\(.+$/)) {
-            expression = expression.slice(0, -1) + number;
-          } else {
-            expression = currentInput;
-          }
-        } else {
-          currentInput += number;
-          if (expression.match(/^(sin|cos|tan)\(.+$/)) {
-            expression += number;
-          } else {
-            expression += number;
-          }
-        }
+    // --- Input Handlers ---
+    function appendNumber(num) {
+      if (isEvaluated) {
+        exprTokens = [];
+        isEvaluated = false;
       }
-      shouldResetScreen = false;
-      lastInputType = 'number';
+
+      const lastToken = exprTokens[exprTokens.length - 1];
+      if (lastToken && !isNaN(lastToken)) {
+        exprTokens[exprTokens.length - 1] = lastToken + num;
+      } else if (lastToken === 'PI' || lastToken === ')') {
+        exprTokens.push('*', num);
+      } else {
+        exprTokens.push(num);
+      }
       updateDisplay();
     }
 
     function appendDecimal() {
-      if (shouldResetScreen) {
-        if (expression.match(/^(sin|cos|tan)\($/)) {
-          currentInput = '0.';
-          expression += '0.';
-        } else {
-          currentInput = '0.';
-          expression = currentInput;
-        }
-        shouldResetScreen = false;
+      if (isEvaluated) {
+        exprTokens = ['0.'];
+        isEvaluated = false;
         updateDisplay();
         return;
       }
-      if (!currentInput.includes('.')) {
-        currentInput += '.';
-        if (expression.match(/^(sin|cos|tan)\(.+$/)) {
-          expression += '.';
-        } else {
-          expression += '.';
+
+      const lastToken = exprTokens[exprTokens.length - 1];
+      if (lastToken && !isNaN(lastToken)) {
+        if (!lastToken.includes('.')) {
+          exprTokens[exprTokens.length - 1] = lastToken + '.';
         }
+      } else {
+        exprTokens.push('0.');
       }
       updateDisplay();
     }
 
-    function appendParenthesis(value) {
-      if (value === '(') {
-        if (lastInputType === 'number' || lastInputType === 'right-paren') {
-          expression += '*(';
-        } else {
-          expression += '(';
-        }
-        currentInput = '(';
-        lastInputType = 'left-paren';
+    function appendOperator(op) {
+      if (isEvaluated) isEvaluated = false;
+
+      if (exprTokens.length === 0) {
+        if (op === '-') exprTokens.push('-');
+        updateDisplay();
+        return;
+      }
+
+      const lastToken = exprTokens[exprTokens.length - 1];
+      const isOp = str => ['+', '-', '*', '/', '^', '%'].includes(str);
+
+      if (isOp(lastToken)) {
+        exprTokens[exprTokens.length - 1] = op;
       } else {
-        const openCount = (expression.match(/\(/g) || []).length;
-        const closeCount = (expression.match(/\)/g) || []).length;
-        if (openCount > closeCount && lastInputType !== 'operator' && lastInputType !== 'left-paren') {
-          expression += ')';
-          currentInput = ')';
-          lastInputType = 'right-paren';
-          shouldResetScreen = true;
-        }
+        exprTokens.push(op);
       }
       updateDisplay();
     }
 
-    function applyPercent() {
-      if (expression === '' || lastInputType === 'operator' || lastInputType === 'left-paren') return;
-      if (expression.endsWith(')')) {
-        expression += '/100';
-      } else {
-        expression = expression.replace(/(Math\.PI|\d+(?:\.\d+)?)$/, '($1/100)');
+    function appendFunction(func) {
+      if (isEvaluated) isEvaluated = false;
+
+      const lastToken = exprTokens[exprTokens.length - 1];
+      if (lastToken && (!isNaN(lastToken) || lastToken === 'PI' || lastToken === ')')) {
+        exprTokens.push('*');
       }
-      try {
-        currentInput = formatResult(eval(expression));
-        lastInputType = 'number';
-        shouldResetScreen = true;
-      } catch (error) {
-        currentInput = 'Error';
-        expression = '';
-        lastInputType = '';
-        shouldResetScreen = true;
+      exprTokens.push(func + '(');
+      updateDisplay();
+    }
+
+    function appendParenthesis(paren) {
+      if (isEvaluated) isEvaluated = false;
+
+      const lastToken = exprTokens[exprTokens.length - 1];
+      if (paren === '(') {
+        if (lastToken && (!isNaN(lastToken) || lastToken === 'PI' || lastToken === ')')) {
+          exprTokens.push('*');
+        }
+        exprTokens.push('(');
+      } else {
+        exprTokens.push(')');
       }
       updateDisplay();
     }
 
     function insertPi() {
-      if (lastInputType === 'number' || lastInputType === 'right-paren') {
-        expression += '*Math.PI';
-      } else {
-        expression += 'Math.PI';
+      if (isEvaluated) {
+        exprTokens = [];
+        isEvaluated = false;
       }
-      currentInput = 'π';
-      lastInputType = 'number';
+
+      const lastToken = exprTokens[exprTokens.length - 1];
+      if (lastToken && (!isNaN(lastToken) || lastToken === 'PI' || lastToken === ')')) {
+        exprTokens.push('*');
+      }
+      exprTokens.push('PI');
       updateDisplay();
     }
 
-    function startTrig(func) {
-      expression = func + '(';
-      currentInput = '';
-      shouldResetScreen = true;
-      operator = null;
-      previousInput = '';
-      isTypingTrig = true;
-      updateDisplay();
-    }
-
-    function setOperator(op) {
-      if (operator !== null && !shouldResetScreen) {
-        calculate();
-      }
-      if (expression && !operator) {
-        const val = evaluateExpression(expression);
-        if (!isNaN(val)) {
-          previousInput = formatResult(val);
-          currentInput = formatResult(val);
-          isTypingTrig = false;
-          expression = formatResult(val) + ' ' + op;
-        } else {
-          currentInput = 'Error';
-          updateDisplay();
-          return;
-        }
-      } else {
-        previousInput = currentInput;
-        expression = currentInput + ' ' + op;
-      }
-      operator = op;
-      shouldResetScreen = true;
-      lastInputType = 'operator';
-      updateDisplay();
+    function applyPercent() {
+      if (exprTokens.length === 0) return;
+      appendOperator('%');
     }
 
     function calculate() {
-      if (operator === null && expression) {
-        const val = evaluateExpression(expression);
-        if (!isNaN(val)) {
-          currentInput = formatResult(val);
-          isTypingTrig = false;
-          const match = expression.match(/^(sin|cos|tan)\((.+)$/);
-          if (match) {
-            expression = match[1] + '(' + match[2] + ')';
-          } else {
-            expression = currentInput;
-          }
-          shouldResetScreen = true;
-          lastInputType = 'equals';
-          updateDisplay();
-          return;
+      if (exprTokens.length === 0) return;
+
+      try {
+        const val = evaluateTokens(exprTokens);
+        const formatted = formatResult(val);
+        
+        isEvaluated = true;
+        updateDisplay();
+        resultEl.textContent = formatted;
+        
+        if (formatted !== 'Error') {
+          exprTokens = [formatted];
+        } else {
+          exprTokens = [];
         }
+      } catch (err) {
+        expressionEl.textContent = exprTokens.join(' ') + ' =';
+        resultEl.textContent = 'Error';
+        exprTokens = [];
+        isEvaluated = false;
       }
-
-      if (operator === null || (shouldResetScreen && previousInput === '')) {
-        if (!isNaN(parseFloat(currentInput))) {
-          currentInput = formatResult(parseFloat(currentInput));
-          updateDisplay();
-        }
-        return;
-      }
-
-      const prev = parseFloat(previousInput);
-      const curr = parseFloat(currentInput);
-      let result;
-
-      switch (operator) {
-        case '+': result = prev + curr; break;
-        case '-': result = prev - curr; break;
-        case '*': result = prev * curr; break;
-        case '/':
-          if (curr === 0) {
-            currentInput = 'Error';
-            operator = null;
-            previousInput = '';
-            expression = '';
-            updateDisplay();
-            return;
-          }
-          result = prev / curr;
-          break;
-        default: return;
-      }
-
-      currentInput = formatResult(result);
-      expression = previousInput + ' ' + operator + ' ' + curr + ' = ' + currentInput;
-      operator = null;
-      previousInput = '';
-      shouldResetScreen = true;
-      lastInputType = 'equals';
-      updateDisplay();
     }
 
-    function applyFunction(func) {
-      const value = parseFloat(currentInput);
-      let result;
-
-      switch (func) {
-        case 'power':
-          result = value * value;
-          break;
-        case 'sqrt':
-          result = Math.sqrt(value);
-          break;
-        case 'log':
-          if (value <= 0) {
-            currentInput = 'Error';
-            expression = '';
-            updateDisplay();
-            return;
-          }
-          result = Math.log10(value);
-          break;
-        default:
-          return;
-      }
-
-      currentInput = formatResult(result);
-      expression = currentInput;
-      shouldResetScreen = true;
-      lastInputType = 'equals';
-      updateDisplay();
-    }
-
-    function clear() {
-      currentExpression = '';
-      currentInput = '0';
-      shouldResetScreen = false;
-      expression = '';
-      isTypingTrig = false;
-      operator = null;
-      previousInput = '';
-      lastInputType = '';
-      updateDisplay();
+    function clearAll() {
+      exprTokens = [];
+      isEvaluated = false;
+      resultEl.textContent = '0';
+      expressionEl.textContent = '';
     }
 
     function backspace() {
-      if (shouldResetScreen) return;
+      if (isEvaluated) {
+        clearAll();
+        return;
+      }
 
-      if (currentInput.length > 0) {
-        currentInput = currentInput.slice(0, -1);
-        expression = expression.slice(0, -1);
-        if (currentInput === '') {
-          if (expression.match(/^(sin|cos|tan)\($/)) {
-            // Keep the trig active, wait for number
-          } else {
-            if (expression === '') {
-              currentInput = '0';
-            }
-          }
-        }
+      if (exprTokens.length === 0) return;
+
+      const lastToken = exprTokens[exprTokens.length - 1];
+      if (!isNaN(lastToken) && lastToken.length > 1) {
+        exprTokens[exprTokens.length - 1] = lastToken.slice(0, -1);
       } else {
-        if (expression.match(/^(sin|cos|tan)\($/)) {
-          expression = '';
-          currentInput = '0';
-          isTypingTrig = false;
-        } else {
-          expression = '';
-          currentInput = '0';
-          isTypingTrig = false;
-        }
+        exprTokens.pop();
       }
       updateDisplay();
     }
 
-    function logarithm() {
-      if (currentInput === 'Error') return;
-      const num = parseFloat(currentInput);
-      if (num <= 0) {
-        currentInput = 'Error';
-        expression = '';
-      } else {
-        currentInput = formatResult(Math.log10(num));
-        expression = currentInput;
-      }
-      shouldResetScreen = true;
-      lastInputType = 'equals';
-      updateDisplay();
-    }
-
+    // --- Event Listeners ---
     document.querySelectorAll('.btn').forEach(button => {
       button.addEventListener('click', () => {
         const action = button.dataset.action;
         const value = button.dataset.value;
 
-        if (button.classList.contains('btn-disabled')) {
-          return;
-        }
-
         switch (action) {
-          case 'number':
-            appendNumber(value);
-            break;
-          case 'decimal':
-            appendDecimal();
-            break;
-          case 'operator':
-            setOperator(value);
-            break;
-          case 'parenthesis':
-            appendParenthesis(value);
-            break;
-          case 'equals':
-            calculate();
-            break;
-          case 'clear':
-            clear();
-            break;
-          case 'backspace':
-            backspace();
-            break;
-          case 'sin':
-            startTrig('sin');
-            break;
-          case 'cos':
-            startTrig('cos');
-            break;
-          case 'tan':
-            startTrig('tan');
-            break;
-          case 'power':
-            applyFunction('power');
-            break;
-          case 'sqrt':
-            applyFunction('sqrt');
-            break;
-          case 'log':
-            applyFunction('log');
-            break;
-          case 'percent':
-            applyPercent();
-            break;
-          case 'pi':
-            insertPi();
-            break;
+          case 'number': appendNumber(value); break;
+          case 'decimal': appendDecimal(); break;
+          case 'operator': appendOperator(value); break;
+          case 'function': appendFunction(value); break;
+          case 'parenthesis': appendParenthesis(value); break;
+          case 'equals': calculate(); break;
+          case 'clear': clearAll(); break;
+          case 'backspace': backspace(); break;
+          case 'percent': applyPercent(); break;
+          case 'pi': insertPi(); break;
         }
       });
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key >= '0' && e.key <= '9') {
-        appendNumber(e.key);
-      } else if (e.key === '.') {
-        appendDecimal();
-      } else if (e.key === '%') {
-        applyPercent();
-      } else if (e.key === '(') {
-        appendParenthesis('(');
-      } else if (e.key === ')') {
-        appendParenthesis(')');
-      } else if (e.key === '+') {
-        setOperator('+');
-      } else if (e.key === '-') {
-        setOperator('-');
-      } else if (e.key === '*') {
-        setOperator('*');
-      } else if (e.key === '/') {
-        e.preventDefault();
-        setOperator('/');
-      } else if (e.key === 'Enter' || e.key === '=') {
-        calculate();
-      } else if (e.key === 'Backspace') {
-        backspace();
-      } else if (e.key === 'Escape') {
-        clear();
-      }
+      if (e.key >= '0' && e.key <= '9') appendNumber(e.key);
+      else if (e.key === '.') appendDecimal();
+      else if (e.key === '+') appendOperator('+');
+      else if (e.key === '-') appendOperator('-');
+      else if (e.key === '*') appendOperator('*');
+      else if (e.key === '/') { e.preventDefault(); appendOperator('/'); }
+      else if (e.key === '^') appendOperator('^');
+      else if (e.key === '%') applyPercent();
+      else if (e.key === '(') appendParenthesis('(');
+      else if (e.key === ')') appendParenthesis(')');
+      else if (e.key === 'Enter' || e.key === '=') calculate();
+      else if (e.key === 'Backspace') backspace();
+      else if (e.key === 'Escape') clearAll();
+      else if (e.key.toLowerCase() === 's') appendFunction('sin');
+      else if (e.key.toLowerCase() === 'c') appendFunction('cos');
+      else if (e.key.toLowerCase() === 't') appendFunction('tan');
+      else if (e.key.toLowerCase() === 'l') appendFunction('log');
+      else if (e.key.toLowerCase() === 'p') insertPi();
+      else if (e.key.toLowerCase() === 'r') appendFunction('sqrt');
     });
 
     updateDisplay();
