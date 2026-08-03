@@ -181,7 +181,7 @@
       }).join(' ');
 
       expressionEl.textContent = isEvaluated ? displayStr + ' =' : '';
-      
+
       if (!isEvaluated) {
         resultEl.textContent = displayStr || '0';
       }
@@ -264,9 +264,9 @@
             case '+': evalStack.push(a + b); break;
             case '-': evalStack.push(a - b); break;
             case '*': evalStack.push(a * b); break;
-            case '/': 
+            case '/':
               if (b === 0) throw new Error("Divide by zero");
-              evalStack.push(a / b); 
+              evalStack.push(a / b);
               break;
             case '^': evalStack.push(Math.pow(a, b)); break;
             case '%': evalStack.push(a % b); break;
@@ -278,13 +278,13 @@
             case 'sin(': evalStack.push(Math.sin(arg * Math.PI / 180)); break;
             case 'cos(': evalStack.push(Math.cos(arg * Math.PI / 180)); break;
             case 'tan(': evalStack.push(Math.tan(arg * Math.PI / 180)); break;
-            case 'log(': 
+            case 'log(':
               if (arg <= 0) throw new Error("Invalid log argument");
-              evalStack.push(Math.log10(arg)); 
+              evalStack.push(Math.log10(arg));
               break;
-            case 'sqrt(': 
+            case 'sqrt(':
               if (arg < 0) throw new Error("Invalid sqrt argument");
-              evalStack.push(Math.sqrt(arg)); 
+              evalStack.push(Math.sqrt(arg));
               break;
           }
         }
@@ -362,17 +362,27 @@
       updateDisplay();
     }
 
-    function appendParenthesis(paren) {
-      if (isEvaluated) isEvaluated = false;
-
-      const lastToken = exprTokens[exprTokens.length - 1];
-      if (paren === '(') {
-        if (lastToken && (!isNaN(lastToken) || lastToken === 'PI' || lastToken === ')')) {
-          exprTokens.push('*');
+    function appendParenthesis(value) {
+      if (value === '(') {
+        // If typing '(' after a number or ')', auto-insert multiplication '*'
+        if (lastInputType === 'number' || lastInputType === 'right-paren') {
+          expression += '*(';
+        } else {
+          expression += '(';
         }
-        exprTokens.push('(');
+        currentInput = '(';
+        lastInputType = 'left-paren';
       } else {
-        exprTokens.push(')');
+        // Check if there are open parentheses to close
+        const openCount = (expression.match(/\(/g) || []).length;
+        const closeCount = (expression.match(/\)/g) || []).length;
+
+        if (openCount > closeCount && lastInputType !== 'operator' && lastInputType !== 'left-paren') {
+          expression += ')';
+          currentInput = ')';
+          lastInputType = 'right-paren';
+          // DO NOT set shouldResetScreen = true here!
+        }
       }
       updateDisplay();
     }
@@ -402,11 +412,11 @@
       try {
         const val = evaluateTokens(exprTokens);
         const formatted = formatResult(val);
-        
+
         isEvaluated = true;
         updateDisplay();
         resultEl.textContent = formatted;
-        
+
         if (formatted !== 'Error') {
           exprTokens = [formatted];
         } else {
