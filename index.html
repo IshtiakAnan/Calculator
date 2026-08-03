@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -131,6 +132,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="calculator">
     <div class="display">
@@ -144,10 +146,11 @@
       <button class="btn btn-function" data-action="parenthesis" data-value=")">)</button>
       <button class="btn btn-function" data-action="percent">%</button>
 
-      <button class="btn btn-function btn-disabled" data-action="sin">sin</button>
-      <button class="btn btn-function btn-disabled" data-action="cos">cos</button>
-      <button class="btn btn-function btn-disabled" data-action="tan">tan</button>
-      <button class="btn btn-function" data-action="log">log</button>
+      <!-- sin, cos, tan are now active (no btn-disabled class) -->
+      <button class="btn btn-function" data-action="sin">sin</button>
+      <button class="btn btn-function" data-action="cos">cos</button>
+      <button class="btn btn-function" data-action="tan">tan</button>
+      <button class="btn btn-function btn-disabled" data-action="log">log</button>
       <button class="btn btn-operator" data-action="operator" data-value="/">&divide;</button>
 
       <button class="btn btn-number" data-action="number" data-value="7">7</button>
@@ -159,7 +162,7 @@
       <button class="btn btn-number" data-action="number" data-value="4">4</button>
       <button class="btn btn-number" data-action="number" data-value="5">5</button>
       <button class="btn btn-number" data-action="number" data-value="6">6</button>
-     <button class="btn btn-function" data-action="sqrt">&radic;</button>
+      <button class="btn btn-function" data-action="sqrt">&radic;</button>
       <button class="btn btn-operator" data-action="operator" data-value="-">&minus;</button>
 
       <button class="btn btn-number" data-action="number" data-value="1">1</button>
@@ -181,32 +184,102 @@
     let currentExpression = '';
     let currentInput = '0';
     let shouldResetScreen = false;
-    let lastInputType = '';
+    let expression = '';
+    let isTypingTrig = false;
+    // function updateDisplay() {
+
+    //   // While typing sin(...), cos(...), or tan(...)
+    //   if (expression.match(/^(sin|cos|tan)\(.*/)) {
+    //     expressionEl.textContent = "";
+    //     resultEl.textContent = expression;
+    //     resultEl.style.fontSize = "42px";
+    //     return;
+    //   }
+
+    //   // Normal calculator display
+    //   resultEl.style.fontSize = "36px";
+    //   resultEl.textContent = currentInput;
+    //   expressionEl.textContent = expression;
+    // }
 
     function updateDisplay() {
-      resultEl.textContent = currentInput;
-      expressionEl.textContent = currentExpression;
+
+      if (isTypingTrig) {
+        expressionEl.textContent = "";
+        resultEl.textContent = expression;
+        resultEl.style.fontSize = "42px";
+      } else {
+        expressionEl.textContent = expression;
+        resultEl.textContent = currentInput;
+        resultEl.style.fontSize = "36px";
+      }
+
     }
 
-    function isOperator(char) {
-      return ['+', '-', '*', '/'].includes(char);
+    function formatResult(num) {
+
+      // Treat extremely small numbers as zero
+      if (Math.abs(num) < 1e-12) {
+        return "0";
+      }
+
+      // Round values that are extremely close to an integer
+      const rounded = Math.round(num);
+      if (Math.abs(num - rounded) < 1e-12) {
+        return rounded.toString();
+      }
+
+      // Round to 10 decimal places and remove trailing zeros
+      return parseFloat(num.toFixed(10)).toString();
     }
 
-    function getLastChar() {
-      return currentExpression.slice(-1);
+    // Evaluate a trig function like sin(60) or cos(30.5)
+    function evaluateExpression(expr) {
+      const match = expr.match(/^(sin|cos|tan)\((.+)$/);
+      if (match) {
+        const func = match[1];
+        const valueStr = match[2];
+        if (valueStr === '') return NaN;
+        const value = parseFloat(valueStr);
+        if (isNaN(value)) return NaN;
+        const radians = value * (Math.PI / 180);
+        switch (func) {
+          case 'sin': return Math.sin(radians);
+          case 'cos': return Math.cos(radians);
+          case 'tan': return Math.tan(radians);
+          default: return NaN;
+        }
+      }
+      return parseFloat(expr);
     }
 
     function appendNumber(number) {
-      if (lastInputType === 'equals' || currentInput === '0' && currentExpression === '' || shouldResetScreen || lastInputType === 'operator' || lastInputType === 'left-paren') {
-        if (lastInputType === 'equals') {
-          currentExpression = number;
-        } else if (isOperator(getLastChar()) || getLastChar() === '(' || currentExpression === '') {
-          currentExpression += number;
+      if (shouldResetScreen) {
+        // If we are inside a trig function, append to it
+        if (expression.match(/^(sin|cos|tan)\($/)) {
+          currentInput = number;
+          expression += number;
+        } else {
+          currentInput = number;
+          expression = currentInput;
         }
-        currentInput = number;
+        shouldResetScreen = false;
       } else {
-        currentExpression += number;
-        currentInput = currentInput === '0' ? number : currentInput + number;
+        if (currentInput === '0' && number !== '.') {
+          currentInput = number;
+          if (expression.match(/^(sin|cos|tan)\(.+$/)) {
+            expression = expression.slice(0, -1) + number;
+          } else {
+            expression = currentInput;
+          }
+        } else {
+          currentInput += number;
+          if (expression.match(/^(sin|cos|tan)\(.+$/)) {
+            expression += number;
+          } else {
+            expression += number;
+          }
+        }
       }
 
       shouldResetScreen = false;
@@ -215,229 +288,195 @@
     }
 
     function appendDecimal() {
-      if (lastInputType === 'equals' || shouldResetScreen || currentExpression === '' || isOperator(getLastChar()) || getLastChar() === '(') {
-        currentExpression += '0.';
-        currentInput = '0.';
-      } else if (!currentInput.includes('.')) {
-        currentExpression += '.';
-        currentInput += '.';
+      if (shouldResetScreen) {
+        if (expression.match(/^(sin|cos|tan)\($/)) {
+          currentInput = '0.';
+          expression += '0.';
+        } else {
+          currentInput = '0.';
+          expression = currentInput;
+        }
+        shouldResetScreen = false;
+        updateDisplay();
+        return;
       }
-
-      shouldResetScreen = false;
-      lastInputType = 'number';
+      if (!currentInput.includes('.')) {
+        currentInput += '.';
+        if (expression.match(/^(sin|cos|tan)\(.+$/)) {
+          expression += '.';
+        } else {
+          expression += '.';
+        }
+      }
       updateDisplay();
     }
 
-    function appendParenthesis(value) {
-      const openCount = (currentExpression.match(/\(/g) || []).length;
-      const closeCount = (currentExpression.match(/\)/g) || []).length;
-
-      if (value === '(') {
-        if (lastInputType === 'number' || lastInputType === 'right-paren') {
-          currentExpression += '*(';
-        } else {
-          currentExpression += '(';
-        }
-        currentInput = '(';
-        lastInputType = 'left-paren';
-      } else {
-        if (openCount > closeCount && lastInputType !== 'operator' && lastInputType !== 'left-paren' && currentExpression !== '') {
-          currentExpression += ')';
-          currentInput = ')';
-          lastInputType = 'right-paren';
-          shouldResetScreen = true;
-        }
-      }
-
+    // 
+    function startTrig(func) {
+      expression = func + '(';
+      currentInput = '';
+      shouldResetScreen = true;
+      operator = null;
+      previousInput = '';
+      isTypingTrig = true;
       updateDisplay();
     }
 
     function setOperator(op) {
-      if (currentExpression === '' && op === '-') {
-        currentExpression = '-';
-        currentInput = '-';
-        lastInputType = 'number';
-        updateDisplay();
-        return;
+      if (operator !== null && !shouldResetScreen) {
+        calculate();
       }
-
-      if (lastInputType === 'operator') {
-        currentExpression = currentExpression.slice(0, -1) + op;
-      } else if (lastInputType === 'left-paren') {
-        if (op === '-') {
-          currentExpression += '-';
-          currentInput = '-';
-          lastInputType = 'number';
+      // If there is a pending trig expression, evaluate it for the operation
+      if (expression && !operator) {
+        const val = evaluateExpression(expression);
+        if (!isNaN(val)) {
+          previousInput = formatResult(val);
+          currentInput = formatResult(val);
+          isTypingTrig = false;
+          expression = formatResult(val) + ' ' + op;
+        } else {
+          currentInput = 'Error';
           updateDisplay();
           return;
         }
-        return;
-      } else if (lastInputType === 'equals') {
-        currentExpression = currentInput + op;
       } else {
-        currentExpression += op;
+        previousInput = currentInput;
+        expression = currentInput + ' ' + op;
       }
-
-      currentInput = op;
-      shouldResetScreen = false;
-      lastInputType = 'operator';
+      operator = op;
+      shouldResetScreen = true;
       updateDisplay();
     }
 
     function calculate() {
-      if (currentExpression === '' || lastInputType === 'operator' || lastInputType === 'left-paren') return;
+      // If there's a trig expression pending, evaluate it directly
+      if (operator === null && expression) {
+        const val = evaluateExpression(expression);
+        if (!isNaN(val)) {
+          currentInput = formatResult(val);
+          isTypingTrig = false;
+          // Add closing parenthesis for display
+          const match = expression.match(/^(sin|cos|tan)\((.+)$/);
+          if (match) {
+            expression = match[1] + '(' + match[2] + ')';
+            // resultEl.style.fontSize = "36px";
+          } else {
+            expression = currentInput;
+          }
+          shouldResetScreen = true;
+          updateDisplay();
+          return;
 
-      const openCount = (currentExpression.match(/\(/g) || []).length;
-      const closeCount = (currentExpression.match(/\)/g) || []).length;
-      const expressionToEval = currentExpression + ')'.repeat(openCount - closeCount);
 
-      try {
-        const result = eval(expressionToEval);
-        if (result === Infinity || result === -Infinity || Number.isNaN(result)) {
-          throw new Error('Invalid result');
+          
         }
-
-        currentInput = formatResult(result);
-        currentExpression = currentInput;
-        lastInputType = 'equals';
-        shouldResetScreen = true;
-      } catch (error) {
-        currentInput = 'Error';
-        currentExpression = '';
-        lastInputType = '';
-        shouldResetScreen = true;
       }
 
+      if (operator === null || (shouldResetScreen && previousInput === '')) {
+        if (!isNaN(parseFloat(currentInput))) {
+          currentInput = formatResult(parseFloat(currentInput));
+          updateDisplay();
+        }
+        return;
+      }
+
+      const prev = parseFloat(previousInput);
+      const curr = parseFloat(currentInput);
+      let result;
+
+      switch (operator) {
+        case '+': result = prev + curr; break;
+        case '-': result = prev - curr; break;
+        case '*': result = prev * curr; break;
+        case '/':
+          if (curr === 0) {
+            currentInput = 'Error';
+            operator = null;
+            previousInput = '';
+            expression = '';
+            updateDisplay();
+            return;
+          }
+          result = prev / curr;
+          break;
+        default: return;
+      }
+
+      currentInput = formatResult(result);
+      expression = previousInput + ' ' + operator + ' ' + curr + ' = ' + currentInput;
+      operator = null;
+      previousInput = '';
+      shouldResetScreen = true;
       updateDisplay();
-    }
-
-    function formatResult(num) {
-      if (!Number.isFinite(num)) {
-        return 'Error';
-      }
-      if (Number.isInteger(num)) {
-        return num.toString();
-      }
-      return parseFloat(num.toPrecision(10)).toString();
     }
 
     function clear() {
       currentExpression = '';
       currentInput = '0';
       shouldResetScreen = false;
-      lastInputType = '';
+      expression = '';
+      isTypingTrig = false;
       updateDisplay();
     }
 
     function backspace() {
-      if (currentInput === 'Error') {
-        clear();
-        return;
-      }
+      if (shouldResetScreen) return;
 
-      currentExpression = currentExpression.slice(0, -1);
-      if (currentExpression === '') {
-        currentInput = '0';
-        lastInputType = '';
-        updateDisplay();
-        return;
-      }
-
-      const lastChar = getLastChar();
-      if (isOperator(lastChar)) {
-        currentInput = lastChar;
-        lastInputType = 'operator';
-      } else if (lastChar === '(') {
-        currentInput = '(';
-        lastInputType = 'left-paren';
-      } else if (lastChar === ')') {
-        currentInput = ')';
-        lastInputType = 'right-paren';
+      if (currentInput.length > 0) {
+        currentInput = currentInput.slice(0, -1);
+        if (expression.match(/^(sin|cos|tan)\(.+$/)) {
+          expression = expression.slice(0, -1);
+        } else {
+          expression = expression.slice(0, -1);
+        }
+        if (currentInput === '') {
+          if (expression.match(/^(sin|cos|tan)\($/)) {
+            // Keep the trig active, wait for number
+          } else {
+            if (expression === '') {
+              currentInput = '0';
+            }
+          }
+        }
       } else {
-        const token = currentExpression.match(/(?:Math\.PI|\d+(?:\.\d+)?)+$/);
-        currentInput = token ? token[0] : currentExpression;
-        lastInputType = /\d|Math\.PI/.test(lastChar) ? 'number' : '';
+        // If currentInput is empty and expression is a trig function without a number
+        if (expression.match(/^(sin|cos|tan)\($/)) {
+          expression = '';
+          currentInput = '0';
+          isTypingTrig = false;
+        } else {
+          expression = '';
+          currentInput = '0';
+          isTypingTrig = false;
+        }
       }
-
       updateDisplay();
     }
 
-    function square() {
-      if (currentInput === 'Error') return;
-      const num = parseFloat(currentInput);
-      const squared = Math.pow(num, 2);
-      currentInput = formatResult(squared);
-      currentExpression = currentInput;
+<<<<<<< HEAD
+    // ----- Event listeners -----
+=======
+    function applyFunction(func) {
+      const value = parseFloat(currentInput);
+      let result;
+
+      switch (func) {
+        case 'power':
+          result = value * value;
+          break;
+        case 'sqrt':
+          result = Math.sqrt(value);
+          break;
+        default:
+          return;
+      }
+
+      currentInput = formatResult(result);
       shouldResetScreen = true;
-      lastInputType = 'equals';
       updateDisplay();
     }
 
-    function insertPi() {
-      if (lastInputType === 'number' || lastInputType === 'right-paren') {
-        currentExpression += '*Math.PI';
-      } else {
-        currentExpression += 'Math.PI';
-      }
-      currentInput = 'π';
-      shouldResetScreen = false;
-      lastInputType = 'number';
-      updateDisplay();
-    }
-
-    function squareRoot() {
-      if (currentInput === 'Error') return;
-      const num = parseFloat(currentInput);
-      if (num < 0) {
-        currentInput = 'Error';
-        currentExpression = '';
-      } else {
-        currentInput = formatResult(Math.sqrt(num));
-        currentExpression = currentInput;
-      }
-      shouldResetScreen = true;
-      lastInputType = 'equals';
-      updateDisplay();
-    }
-
-    function logarithm() {
-      if (currentInput === 'Error') return;
-      const num = parseFloat(currentInput);
-      if (num <= 0) {
-        currentInput = 'Error';
-        currentExpression = '';
-      } else {
-        currentInput = formatResult(Math.log10(num));
-        currentExpression = currentInput;
-      }
-      shouldResetScreen = true;
-      lastInputType = 'equals';
-      updateDisplay();
-    }
-
-    function applyPercent() {
-      if (currentExpression === '' || lastInputType === 'operator' || lastInputType === 'left-paren') return;
-
-      if (currentExpression.endsWith(')')) {
-        currentExpression += '/100';
-      } else {
-        currentExpression = currentExpression.replace(/(Math\.PI|\d+(?:\.\d+)?)$/,'($1/100)');
-      }
-
-      try {
-        currentInput = formatResult(eval(currentExpression));
-        lastInputType = 'number';
-        shouldResetScreen = true;
-      } catch (error) {
-        currentInput = 'Error';
-        currentExpression = '';
-        lastInputType = '';
-        shouldResetScreen = true;
-      }
-
-      updateDisplay();
-    }
-
+>>>>>>> dev/anan
     document.querySelectorAll('.btn').forEach(button => {
       button.addEventListener('click', () => {
         const action = button.dataset.action;
@@ -481,16 +520,26 @@ case 'sqrt':
           case 'backspace':
             backspace();
             break;
-          case 'percent':
-            applyPercent();
+<<<<<<< HEAD
+          case 'sin':
+            startTrig('sin');
             break;
-          case 'pi':
-            insertPi();
+          case 'cos':
+            startTrig('cos');
+            break;
+          case 'tan':
+            startTrig('tan');
+=======
+          case 'power':
+          case 'sqrt':
+            applyFunction(action);
+>>>>>>> dev/anan
             break;
         }
       });
     });
 
+    // ----- Keyboard support -----
     document.addEventListener('keydown', (e) => {
       if (e.key >= '0' && e.key <= '9') {
         appendNumber(e.key);
@@ -520,7 +569,9 @@ case 'sqrt':
       }
     });
 
+    // Initialize display
     updateDisplay();
   </script>
 </body>
+
 </html>
