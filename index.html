@@ -163,295 +163,37 @@
     </div>
   </div>
 
+  <script src="calculator.js"></script>
   <script>
     const expressionEl = document.getElementById('expression');
     const resultEl = document.getElementById('result');
 
-    let exprTokens = [];
-    let isEvaluated = false;
+    const calculator = new CalculatorEngine();
 
     function updateDisplay() {
-      const displayStr = exprTokens.map(t => {
-        if (t === '*') return '×';
-        if (t === '/') return '÷';
-        if (t === '-') return '−';
-        if (t === 'sqrt(') return '√(';
-        if (t === 'PI') return 'π';
-        return t;
-      }).join(' ');
+      const displayStr = calculator.getDisplayExpression();
+      expressionEl.textContent = calculator.isEvaluated ? displayStr + ' =' : '';
 
-      expressionEl.textContent = isEvaluated ? displayStr + ' =' : '';
-
-      if (!isEvaluated) {
+      if (!calculator.isEvaluated) {
         resultEl.textContent = displayStr || '0';
       }
     }
 
-    function formatResult(num) {
-      if (isNaN(num) || !isFinite(num)) return 'Error';
-      if (Math.abs(num) < 1e-12) return '0';
-      const rounded = Math.round(num);
-      if (Math.abs(num - rounded) < 1e-12) return rounded.toString();
-      return parseFloat(num.toFixed(10)).toString();
-    }
-
-    // --- Expression Parser & Evaluator (Shunting-Yard) ---
-    function evaluateTokens(tokens) {
-      if (tokens.length === 0) return 0;
-
-      const outputQueue = [];
-      const operatorStack = [];
-
-      const precedence = { '+': 1, '-': 1, '*': 2, '/': 2, '^': 3, '%': 2 };
-      const rightAssociative = { '^': true };
-
-      const isNumber = str => !isNaN(parseFloat(str)) || str === 'PI';
-      const isFunction = str => ['sin(', 'cos(', 'tan(', 'log(', 'sqrt('].includes(str);
-      const isOperator = str => ['+', '-', '*', '/', '^', '%'].includes(str);
-
-      for (let i = 0; i < tokens.length; i++) {
-        let token = tokens[i];
-
-        if (isNumber(token)) {
-          outputQueue.push(token === 'PI' ? Math.PI : parseFloat(token));
-        } else if (isFunction(token)) {
-          operatorStack.push(token);
-        } else if (isOperator(token)) {
-          // Check for unary minus
-          if (token === '-' && (i === 0 || tokens[i - 1] === '(' || isOperator(tokens[i - 1]))) {
-            outputQueue.push(0); // Insert 0 before unary minus: e.g. -5 -> 0 - 5
-          }
-          while (
-            operatorStack.length > 0 &&
-            isOperator(operatorStack[operatorStack.length - 1]) &&
-            ((!rightAssociative[token] && precedence[token] <= precedence[operatorStack[operatorStack.length - 1]]) ||
-              (rightAssociative[token] && precedence[token] < precedence[operatorStack[operatorStack.length - 1]]))
-          ) {
-            outputQueue.push(operatorStack.pop());
-          }
-          operatorStack.push(token);
-        } else if (token === '(') {
-          operatorStack.push(token);
-        } else if (token === ')') {
-          while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] !== '(') {
-            outputQueue.push(operatorStack.pop());
-          }
-          if (operatorStack.length === 0) throw new Error("Mismatched parentheses");
-          operatorStack.pop(); // Pop '('
-
-          if (operatorStack.length > 0 && isFunction(operatorStack[operatorStack.length - 1])) {
-            outputQueue.push(operatorStack.pop());
-          }
-        }
-      }
-
-      while (operatorStack.length > 0) {
-        const top = operatorStack.pop();
-        if (top === '(' || top === ')') throw new Error("Mismatched parentheses");
-        outputQueue.push(top);
-      }
-
-      // Evaluate RPN
-      const evalStack = [];
-      for (let token of outputQueue) {
-        if (typeof token === 'number') {
-          evalStack.push(token);
-        } else if (isOperator(token)) {
-          if (evalStack.length < 2) throw new Error("Invalid expression");
-          const b = evalStack.pop();
-          const a = evalStack.pop();
-          switch (token) {
-            case '+': evalStack.push(a + b); break;
-            case '-': evalStack.push(a - b); break;
-            case '*': evalStack.push(a * b); break;
-            case '/':
-              if (b === 0) throw new Error("Divide by zero");
-              evalStack.push(a / b);
-              break;
-            case '^': evalStack.push(Math.pow(a, b)); break;
-            case '%': evalStack.push(a % b); break;
-          }
-        } else if (isFunction(token)) {
-          if (evalStack.length < 1) throw new Error("Invalid function argument");
-          const arg = evalStack.pop();
-          switch (token) {
-            case 'sin(': evalStack.push(Math.sin(arg * Math.PI / 180)); break;
-            case 'cos(': evalStack.push(Math.cos(arg * Math.PI / 180)); break;
-            case 'tan(': evalStack.push(Math.tan(arg * Math.PI / 180)); break;
-            case 'log(':
-              if (arg <= 0) throw new Error("Invalid log argument");
-              evalStack.push(Math.log10(arg));
-              break;
-            case 'sqrt(':
-              if (arg < 0) throw new Error("Invalid sqrt argument");
-              evalStack.push(Math.sqrt(arg));
-              break;
-          }
-        }
-      }
-
-      if (evalStack.length !== 1) throw new Error("Invalid expression");
-      return evalStack[0];
-    }
-
-    // --- Input Handlers ---
-    function appendNumber(num) {
-      if (isEvaluated) {
-        exprTokens = [];
-        isEvaluated = false;
-      }
-
-      const lastToken = exprTokens[exprTokens.length - 1];
-      if (lastToken && !isNaN(lastToken)) {
-        exprTokens[exprTokens.length - 1] = lastToken + num;
-      } else if (lastToken === 'PI' || lastToken === ')') {
-        exprTokens.push('*', num);
-      } else {
-        exprTokens.push(num);
-      }
-      updateDisplay();
-    }
-
-    function appendDecimal() {
-      if (isEvaluated) {
-        exprTokens = ['0.'];
-        isEvaluated = false;
-        updateDisplay();
-        return;
-      }
-
-      const lastToken = exprTokens[exprTokens.length - 1];
-      if (lastToken && !isNaN(lastToken)) {
-        if (!lastToken.includes('.')) {
-          exprTokens[exprTokens.length - 1] = lastToken + '.';
-        }
-      } else {
-        exprTokens.push('0.');
-      }
-      updateDisplay();
-    }
-
-    function appendOperator(op) {
-      if (isEvaluated) isEvaluated = false;
-
-      if (exprTokens.length === 0) {
-        if (op === '-') exprTokens.push('-');
-        updateDisplay();
-        return;
-      }
-
-      const lastToken = exprTokens[exprTokens.length - 1];
-      const isOp = str => ['+', '-', '*', '/', '^', '%'].includes(str);
-
-      if (isOp(lastToken)) {
-        exprTokens[exprTokens.length - 1] = op;
-      } else {
-        exprTokens.push(op);
-      }
-      updateDisplay();
-    }
-
-    function appendFunction(func) {
-      if (isEvaluated) isEvaluated = false;
-
-      const lastToken = exprTokens[exprTokens.length - 1];
-      if (lastToken && (!isNaN(lastToken) || lastToken === 'PI' || lastToken === ')')) {
-        exprTokens.push('*');
-      }
-      exprTokens.push(func + '(');
-      updateDisplay();
-    }
-
-    function appendParenthesis(value) {
-      if (value === '(') {
-        // If typing '(' after a number or ')', auto-insert multiplication '*'
-        if (lastInputType === 'number' || lastInputType === 'right-paren') {
-          expression += '*(';
-        } else {
-          expression += '(';
-        }
-        currentInput = '(';
-        lastInputType = 'left-paren';
-      } else {
-        // Check if there are open parentheses to close
-        const openCount = (expression.match(/\(/g) || []).length;
-        const closeCount = (expression.match(/\)/g) || []).length;
-
-        if (openCount > closeCount && lastInputType !== 'operator' && lastInputType !== 'left-paren') {
-          expression += ')';
-          currentInput = ')';
-          lastInputType = 'right-paren';
-          // DO NOT set shouldResetScreen = true here!
-        }
-      }
-      updateDisplay();
-    }
-
-    function insertPi() {
-      if (isEvaluated) {
-        exprTokens = [];
-        isEvaluated = false;
-      }
-
-      const lastToken = exprTokens[exprTokens.length - 1];
-      if (lastToken && (!isNaN(lastToken) || lastToken === 'PI' || lastToken === ')')) {
-        exprTokens.push('*');
-      }
-      exprTokens.push('PI');
-      updateDisplay();
-    }
-
-    function applyPercent() {
-      if (exprTokens.length === 0) return;
-      appendOperator('%');
-    }
-
     function calculate() {
-      if (exprTokens.length === 0) return;
-
-      try {
-        const val = evaluateTokens(exprTokens);
-        const formatted = formatResult(val);
-
-        isEvaluated = true;
-        updateDisplay();
-        resultEl.textContent = formatted;
-
-        if (formatted !== 'Error') {
-          exprTokens = [formatted];
-        } else {
-          exprTokens = [];
-        }
-      } catch (err) {
-        expressionEl.textContent = exprTokens.join(' ') + ' =';
-        resultEl.textContent = 'Error';
-        exprTokens = [];
-        isEvaluated = false;
+      if (calculator.exprTokens.length === 0) return;
+      const initialExpr = calculator.getDisplayExpression();
+      const res = calculator.calculate();
+      updateDisplay();
+      resultEl.textContent = res.result;
+      if (res.result === 'Error') {
+        expressionEl.textContent = initialExpr + ' =';
       }
     }
 
     function clearAll() {
-      exprTokens = [];
-      isEvaluated = false;
+      calculator.clearAll();
       resultEl.textContent = '0';
       expressionEl.textContent = '';
-    }
-
-    function backspace() {
-      if (isEvaluated) {
-        clearAll();
-        return;
-      }
-
-      if (exprTokens.length === 0) return;
-
-      const lastToken = exprTokens[exprTokens.length - 1];
-      if (!isNaN(lastToken) && lastToken.length > 1) {
-        exprTokens[exprTokens.length - 1] = lastToken.slice(0, -1);
-      } else {
-        exprTokens.pop();
-      }
-      updateDisplay();
     }
 
     // --- Event Listeners ---
@@ -461,40 +203,40 @@
         const value = button.dataset.value;
 
         switch (action) {
-          case 'number': appendNumber(value); break;
-          case 'decimal': appendDecimal(); break;
-          case 'operator': appendOperator(value); break;
-          case 'function': appendFunction(value); break;
-          case 'parenthesis': appendParenthesis(value); break;
+          case 'number': calculator.appendNumber(value); updateDisplay(); break;
+          case 'decimal': calculator.appendDecimal(); updateDisplay(); break;
+          case 'operator': calculator.appendOperator(value); updateDisplay(); break;
+          case 'function': calculator.appendFunction(value); updateDisplay(); break;
+          case 'parenthesis': calculator.appendParenthesis(value); updateDisplay(); break;
           case 'equals': calculate(); break;
           case 'clear': clearAll(); break;
-          case 'backspace': backspace(); break;
-          case 'percent': applyPercent(); break;
-          case 'pi': insertPi(); break;
+          case 'backspace': calculator.backspace(); updateDisplay(); break;
+          case 'percent': calculator.applyPercent(); updateDisplay(); break;
+          case 'pi': calculator.insertPi(); updateDisplay(); break;
         }
       });
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key >= '0' && e.key <= '9') appendNumber(e.key);
-      else if (e.key === '.') appendDecimal();
-      else if (e.key === '+') appendOperator('+');
-      else if (e.key === '-') appendOperator('-');
-      else if (e.key === '*') appendOperator('*');
-      else if (e.key === '/') { e.preventDefault(); appendOperator('/'); }
-      else if (e.key === '^') appendOperator('^');
-      else if (e.key === '%') applyPercent();
-      else if (e.key === '(') appendParenthesis('(');
-      else if (e.key === ')') appendParenthesis(')');
+      if (e.key >= '0' && e.key <= '9') { calculator.appendNumber(e.key); updateDisplay(); }
+      else if (e.key === '.') { calculator.appendDecimal(); updateDisplay(); }
+      else if (e.key === '+') { calculator.appendOperator('+'); updateDisplay(); }
+      else if (e.key === '-') { calculator.appendOperator('-'); updateDisplay(); }
+      else if (e.key === '*') { calculator.appendOperator('*'); updateDisplay(); }
+      else if (e.key === '/') { e.preventDefault(); calculator.appendOperator('/'); updateDisplay(); }
+      else if (e.key === '^') { calculator.appendOperator('^'); updateDisplay(); }
+      else if (e.key === '%') { calculator.applyPercent(); updateDisplay(); }
+      else if (e.key === '(') { calculator.appendParenthesis('('); updateDisplay(); }
+      else if (e.key === ')') { calculator.appendParenthesis(')'); updateDisplay(); }
       else if (e.key === 'Enter' || e.key === '=') calculate();
-      else if (e.key === 'Backspace') backspace();
+      else if (e.key === 'Backspace') { calculator.backspace(); updateDisplay(); }
       else if (e.key === 'Escape') clearAll();
-      else if (e.key.toLowerCase() === 's') appendFunction('sin');
-      else if (e.key.toLowerCase() === 'c') appendFunction('cos');
-      else if (e.key.toLowerCase() === 't') appendFunction('tan');
-      else if (e.key.toLowerCase() === 'l') appendFunction('log');
-      else if (e.key.toLowerCase() === 'p') insertPi();
-      else if (e.key.toLowerCase() === 'r') appendFunction('sqrt');
+      else if (e.key.toLowerCase() === 's') { calculator.appendFunction('sin'); updateDisplay(); }
+      else if (e.key.toLowerCase() === 'c') { calculator.appendFunction('cos'); updateDisplay(); }
+      else if (e.key.toLowerCase() === 't') { calculator.appendFunction('tan'); updateDisplay(); }
+      else if (e.key.toLowerCase() === 'l') { calculator.appendFunction('log'); updateDisplay(); }
+      else if (e.key.toLowerCase() === 'p') { calculator.insertPi(); updateDisplay(); }
+      else if (e.key.toLowerCase() === 'r') { calculator.appendFunction('sqrt'); updateDisplay(); }
     });
 
     updateDisplay();

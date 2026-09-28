@@ -42,10 +42,41 @@ open index.html
 | `Backspace` | Clear last digit |
 | `Escape`  | Clear all         |
 
+## Testing
+
+This project includes a comprehensive, zero-dependency automated test suite covering 50 unit tests across 7 suites (arithmetic, precedence, parentheses, scientific functions, unary operations, edge cases, and UI interactions).
+
+### Option 1: Run in Browser (Interactive GUI)
+
+Open `test.html` in any web browser:
+
+```bash
+open test.html
+# or with Brave/Firefox/Chrome
+brave test.html
+```
+
+Features:
+- Visual pass/fail status and execution timings
+- Filter tests (All / Failed Only / Passed Only)
+- Detailed error diagnostics with expected vs actual values
+- Re-run test suite button
+
+### Option 2: Run from Terminal (Headless CLI)
+
+Run the automated test runner directly from your terminal:
+
+```bash
+./run-tests.sh
+```
+
 ## Project Structure
 
 ```
 Calculator/
-├── index.html    # Main application
-└── README.md     # This file
+├── index.html       # Main calculator application UI
+├── calculator.js    # Core calculation engine, Shunting-Yard parser & state
+├── test.html        # Interactive in-browser automated test runner
+├── run-tests.sh     # Headless CLI test runner script
+└── README.md        # Project documentation
 ```

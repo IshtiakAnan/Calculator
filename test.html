@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scientific Calculator — Automated Test Suite</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --card-bg: #16213e;
+      --surface: #0f3460;
+      --accent: #53d8a8;
+      --danger: #e94560;
+      --warning: #f39c12;
+      --text: #e0e0e0;
+      --text-muted: #8a8a9a;
+      --border: #243358;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      padding: 30px 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 24px 30px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #1a1a2e;
+    }
+
+    .btn-primary:hover {
+      background: #6aedb8;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: #a8c0ff;
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: #1a4a7a;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      padding: 14px 18px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .stat-total .stat-value { color: #ffffff; }
+    .stat-passed .stat-value { color: var(--accent); }
+    .stat-failed .stat-value { color: var(--danger); }
+    .stat-time .stat-value { color: #a8c0ff; }
+
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .filter-label {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+
+    .filter-pill {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .filter-pill.active {
+      background: var(--surface);
+      color: #ffffff;
+      border-color: #a8c0ff;
+    }
+
+    .suite-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .suite-header {
+      padding: 16px 20px;
+      background: rgba(15, 52, 96, 0.6);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .suite-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .suite-summary {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .suite-summary .badge {
+      margin-left: 6px;
+    }
+
+    .test-list {
+      list-style: none;
+    }
+
+    .test-item {
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .test-item:last-child {
+      border-bottom: none;
+    }
+
+    .test-main {
+      flex: 1;
+    }
+
+    .test-desc {
+      font-size: 14px;
+      font-weight: 500;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .test-details {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: monospace;
+      word-break: break-all;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-pass {
+      background: rgba(83, 216, 168, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(83, 216, 168, 0.3);
+    }
+
+    .badge-fail {
+      background: rgba(233, 69, 96, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(233, 69, 96, 0.3);
+    }
+
+    .error-box {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: rgba(233, 69, 96, 0.1);
+      border-left: 3px solid var(--danger);
+      border-radius: 4px;
+      font-size: 12px;
+      color: #ff9aa8;
+      font-family: monospace;
+    }
+
+    #console-summary {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 30px;
+      font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+      font-size: 13px;
+      color: #94a3b8;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="header-top">
+        <h1>
+          <span>🧪</span> Scientific Calculator Test Suite
+        </h1>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="runAllTests()">↻ Re-run Tests</button>
+          <a class="btn btn-secondary" href="index.html">← Open Calculator</a>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card stat-total">
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Total Tests</div>
+        </div>
+        <div class="stat-card stat-passed">
+          <div class="stat-value" id="stat-passed">0</div>
+          <div class="stat-label">Passed</div>
+        </div>
+        <div class="stat-card stat-failed">
+          <div class="stat-value" id="stat-failed">0</div>
+          <div class="stat-label">Failed</div>
+        </div>
+        <div class="stat-card stat-time">
+          <div class="stat-value" id="stat-time">0ms</div>
+          <div class="stat-label">Duration</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="filter-bar">
+      <span class="filter-label">Filter:</span>
+      <button class="filter-pill active" data-filter="all" onclick="setFilter('all')">All Tests</button>
+      <button class="filter-pill" data-filter="fail" onclick="setFilter('fail')">Failed Only (<span id="filter-fail-count">0</span>)</button>
+      <button class="filter-pill" data-filter="pass" onclick="setFilter('pass')">Passed Only</button>
+    </div>
+
+    <div id="test-suites"></div>
+
+    <pre id="console-summary">Running test suite...</pre>
+  </div>
+
+  <script src="calculator.js"></script>
+  <script>
+    // --- Lightweight Test Framework ---
+    const suites = [];
+    let currentSuite = null;
+
+    function describe(suiteName, fn) {
+      currentSuite = {
+        name: suiteName,
+        tests: []
+      };
+      suites.push(currentSuite);
+      fn();
+    }
+
+    function it(testName, fn) {
+      currentSuite.tests.push({
+        name: testName,
+        fn: fn
+      });
+    }
+
+    // Custom Assertions
+    const assert = {
+      strictEqual(actual, expected, message) {
+        if (actual !== expected) {
+          throw new Error(message || `Expected: ${JSON.stringify(expected)}, Actual: ${JSON.stringify(actual)}`);
+        }
+      },
+      closeTo(actual, expected, delta = 1e-7, message) {
+        if (Math.abs(actual - expected) > delta) {
+          throw new Error(message || `Expected ${actual} to be close to ${expected} (within ${delta})`);
+        }
+      },
+      throws(fn, expectedErrorSubstring) {
+        let threw = false;
+        let thrownError = null;
+        try {
+          fn();
+        } catch (err) {
+          threw = true;
+          thrownError = err;
+        }
+        if (!threw) {
+          throw new Error("Expected function to throw an error, but it did not throw.");
+        }
+        if (expectedErrorSubstring && !thrownError.message.includes(expectedErrorSubstring)) {
+          throw new Error(`Expected error message to include "${expectedErrorSubstring}", got "${thrownError.message}"`);
+        }
+      }
+    };
+
+    // Helper to evaluate token expressions easily
+    function evalExpr(tokens) {
+      const val = evaluateTokens(tokens);
+      return formatResult(val);
+    }
+
+    // ==========================================
+    // TEST SUITES DEFINITIONS
+    // ==========================================
+
+    describe("1. Basic Arithmetic Operations", () => {
+      it("should perform simple addition: 2 + 3 = 5", () => {
+        assert.strictEqual(evalExpr(['2', '+', '3']), '5');
+      });
+
+      it("should perform multi-digit addition: 120 + 350 = 470", () => {
+        assert.strictEqual(evalExpr(['120', '+', '350']), '470');
+      });
+
+      it("should perform simple subtraction: 10 - 4 = 6", () => {
+        assert.strictEqual(evalExpr(['10', '-', '4']), '6');
+      });
+
+      it("should handle subtraction resulting in negative number: 3 - 8 = -5", () => {
+        assert.strictEqual(evalExpr(['3', '-', '8']), '-5');
+      });
+
+      it("should perform multiplication: 7 * 6 = 42", () => {
+        assert.strictEqual(evalExpr(['7', '*', '6']), '42');
+      });
+
+      it("should perform division: 84 / 2 = 42", () => {
+        assert.strictEqual(evalExpr(['84', '/', '2']), '42');
+      });
+
+      it("should perform fractional division: 7 / 2 = 3.5", () => {
+        assert.strictEqual(evalExpr(['7', '/', '2']), '3.5');
+      });
+
+      it("should handle floating point decimals: 0.1 + 0.2 = 0.3", () => {
+        assert.strictEqual(evalExpr(['0.1', '+', '0.2']), '0.3');
+      });
+
+      it("should chain multiple additions and subtractions: 10 + 20 - 5 + 3 = 28", () => {
+        assert.strictEqual(evalExpr(['10', '+', '20', '-', '5', '+', '3']), '28');
+      });
+
+      it("should compute square/power: 5 ^ 2 = 25", () => {
+        assert.strictEqual(evalExpr(['5', '^', '2']), '25');
+      });
+
+      it("should compute modulo: 10 % 3 = 1", () => {
+        assert.strictEqual(evalExpr(['10', '%', '3']), '1');
+      });
+    });
+
+    describe("2. Order of Operations (PEMDAS/BODMAS) & Precedence", () => {
+      it("should prioritize multiplication over addition: 2 + 3 * 4 = 14", () => {
+        assert.strictEqual(evalExpr(['2', '+', '3', '*', '4']), '14');
+      });
+
+      it("should prioritize division over subtraction: 20 - 8 / 2 = 16", () => {
+        assert.strictEqual(evalExpr(['20', '-', '8', '/', '2']), '16');
+      });
+
+      it("should prioritize exponentiation over multiplication: 2 * 3 ^ 2 = 18", () => {
+        assert.strictEqual(evalExpr(['2', '*', '3', '^', '2']), '18');
+      });
+
+      it("should evaluate exponentiation right-associatively: 2 ^ 3 ^ 2 = 512 (2^(3^2) = 2^9)", () => {
+        assert.strictEqual(evalExpr(['2', '^', '3', '^', '2']), '512');
+      });
+
+      it("should evaluate mixed operators correctly: 10 + 2 * 3 ^ 2 - 8 / 4 = 26", () => {
+        // 10 + (2 * 9) - 2 = 10 + 18 - 2 = 26
+        assert.strictEqual(evalExpr(['10', '+', '2', '*', '3', '^', '2', '-', '8', '/', '4']), '26');
+      });
+    });
+
+    describe("3. Parentheses & Grouping", () => {
+      it("should allow parentheses to override precedence: ( 2 + 3 ) * 4 = 20", () => {
+        assert.strictEqual(evalExpr(['(', '2', '+', '3', ')', '*', '4']), '20');
+      });
+
+      it("should handle nested parentheses: ( ( 2 + 3 ) * ( 4 + 1 ) ) = 25", () => {
+        assert.strictEqual(evalExpr(['(', '(', '2', '+', '3', ')', '*', '(', '4', '+', '1', ')', ')']), '25');
+      });
+
+      it("should handle parentheses with exponentiation: ( 2 ^ 3 ) ^ 2 = 64", () => {
+        assert.strictEqual(evalExpr(['(', '2', '^', '3', ')', '^', '2']), '64');
+      });
+
+      it("should throw error for unclosed parentheses: ( 2 + 3", () => {
+        assert.throws(() => evaluateTokens(['(', '2', '+', '3']), "Mismatched parentheses");
+      });
+
+      it("should throw error for mismatched closing parenthesis: 2 + 3 )", () => {
+        assert.throws(() => evaluateTokens(['2', '+', '3', ')']), "Mismatched parentheses");
+      });
+    });
+
+    describe("4. Trigonometric & Scientific Functions", () => {
+      it("should evaluate sin in degrees: sin(0) = 0, sin(30) = 0.5, sin(90) = 1, sin(180) = 0", () => {
+        assert.strictEqual(evalExpr(['sin(', '0', ')']), '0');
+        assert.strictEqual(evalExpr(['sin(', '30', ')']), '0.5');
+        assert.strictEqual(evalExpr(['sin(', '90', ')']), '1');
+        assert.strictEqual(evalExpr(['sin(', '180', ')']), '0');
+      });
+
+      it("should evaluate cos in degrees: cos(0) = 1, cos(60) = 0.5, cos(90) = 0, cos(180) = -1", () => {
+        assert.strictEqual(evalExpr(['cos(', '0', ')']), '1');
+        assert.strictEqual(evalExpr(['cos(', '60', ')']), '0.5');
+        assert.strictEqual(evalExpr(['cos(', '90', ')']), '0');
+        assert.strictEqual(evalExpr(['cos(', '180', ')']), '-1');
+      });
+
+      it("should evaluate tan in degrees: tan(0) = 0, tan(45) = 1", () => {
+        assert.strictEqual(evalExpr(['tan(', '0', ')']), '0');
+        assert.strictEqual(evalExpr(['tan(', '45', ')']), '1');
+      });
+
+      it("should evaluate log (base-10): log(1) = 0, log(10) = 1, log(100) = 2, log(1000) = 3", () => {
+        assert.strictEqual(evalExpr(['log(', '1', ')']), '0');
+        assert.strictEqual(evalExpr(['log(', '10', ')']), '1');
+        assert.strictEqual(evalExpr(['log(', '100', ')']), '2');
+        assert.strictEqual(evalExpr(['log(', '1000', ')']), '3');
+      });
+
+      it("should evaluate sqrt: sqrt(0) = 0, sqrt(4) = 2, sqrt(144) = 12", () => {
+        assert.strictEqual(evalExpr(['sqrt(', '0', ')']), '0');
+        assert.strictEqual(evalExpr(['sqrt(', '4', ')']), '2');
+        assert.strictEqual(evalExpr(['sqrt(', '144', ')']), '12');
+      });
+
+      it("should support mathematical constant PI: PI and 2 * PI", () => {
+        const piVal = evaluateTokens(['PI']);
+        assert.closeTo(piVal, Math.PI, 1e-10);
+        const twoPiVal = evaluateTokens(['2', '*', 'PI']);
+        assert.closeTo(twoPiVal, 2 * Math.PI, 1e-10);
+      });
+
+      it("should handle nested scientific functions: sqrt( sin(90) * 16 ) = 4", () => {
+        assert.strictEqual(evalExpr(['sqrt(', 'sin(', '90', ')', '*', '16', ')']), '4');
+      });
+    });
+
+    describe("5. Unary Operations & Negative Numbers", () => {
+      it("should handle leading unary minus: - 5 + 10 = 5", () => {
+        assert.strictEqual(evalExpr(['-', '5', '+', '10']), '5');
+      });
+
+      it("should handle unary minus inside parentheses: ( - 5 ) * 3 = -15", () => {
+        assert.strictEqual(evalExpr(['(', '-', '5', ')', '*', '3']), '-15');
+      });
+
+      it("should handle unary minus inside scientific function: sin( - 90 ) = -1", () => {
+        assert.strictEqual(evalExpr(['sin(', '-', '90', ')']), '-1');
+      });
+
+      it("should handle consecutive operators as unary minus: 10 + - 3 = 7", () => {
+        assert.strictEqual(evalExpr(['10', '+', '-', '3']), '7');
+      });
+    });
+
+    describe("6. Edge Cases & Error Handling", () => {
+      it("should throw error on division by zero: 10 / 0", () => {
+        assert.throws(() => evaluateTokens(['10', '/', '0']), "Divide by zero");
+      });
+
+      it("should throw error on modulo by zero: 10 % 0", () => {
+        assert.throws(() => evaluateTokens(['10', '%', '0']), "Divide by zero");
+      });
+
+      it("should throw error for log of 0 or negative numbers", () => {
+        assert.throws(() => evaluateTokens(['log(', '0', ')']), "Invalid log argument");
+        assert.throws(() => evaluateTokens(['log(', '-', '5', ')']), "Invalid log argument");
+      });
+
+      it("should throw error for sqrt of negative numbers", () => {
+        assert.throws(() => evaluateTokens(['sqrt(', '-', '4', ')']), "Invalid sqrt argument");
+      });
+
+      it("should return 0 for empty token array", () => {
+        assert.strictEqual(evaluateTokens([]), 0);
+      });
+
+      it("should format extreme numbers and decimals properly", () => {
+        assert.strictEqual(formatResult(NaN), 'Error');
+        assert.strictEqual(formatResult(Infinity), 'Error');
+        assert.strictEqual(formatResult(-Infinity), 'Error');
+        assert.strictEqual(formatResult(0.00000000000000001), '0'); // very small value close to 0
+      });
+    });
+
+    describe("7. CalculatorEngine & Interactive Flow", () => {
+      it("should build multi-digit numbers via appendNumber", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('1');
+        engine.appendNumber('2');
+        engine.appendNumber('3');
+        assert.strictEqual(engine.exprTokens.join(''), '123');
+      });
+
+      it("should prevent duplicate decimal points in a single number", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('3');
+        engine.appendDecimal();
+        engine.appendNumber('1');
+        engine.appendDecimal(); // should be ignored
+        engine.appendNumber('4');
+        assert.strictEqual(engine.exprTokens[0], '3.14');
+      });
+
+      it("should replace consecutive operators if entered consecutively", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('5');
+        engine.appendOperator('+');
+        engine.appendOperator('*'); // Should replace + with *
+        assert.strictEqual(engine.exprTokens.length, 2);
+        assert.strictEqual(engine.exprTokens[1], '*');
+      });
+
+      it("should insert implicit multiplication when typing ( after number", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('5');
+        engine.appendParenthesis('(');
+        assert.strictEqual(engine.exprTokens.join(' '), '5 * (');
+      });
+
+      it("should insert implicit multiplication when typing function after number", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('2');
+        engine.appendFunction('sin');
+        assert.strictEqual(engine.exprTokens.join(' '), '2 * sin(');
+      });
+
+      it("should insert implicit multiplication when typing PI after number", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('3');
+        engine.insertPi();
+        assert.strictEqual(engine.exprTokens.join(' '), '3 * PI');
+      });
+
+      it("should only allow closing parenthesis ) when matching open parenthesis exists", () => {
+        const engine = new CalculatorEngine();
+        engine.appendParenthesis(')'); // No open paren, should be ignored
+        assert.strictEqual(engine.exprTokens.length, 0);
+
+        engine.appendParenthesis('(');
+        engine.appendNumber('5');
+        engine.appendParenthesis(')'); // Valid match
+        assert.strictEqual(engine.exprTokens.join(' '), '( 5 )');
+      });
+
+      it("should support chaining calculations after equals: 2 + 3 = 5, then + 4 = 9", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('2');
+        engine.appendOperator('+');
+        engine.appendNumber('3');
+        const res1 = engine.calculate();
+        assert.strictEqual(res1.result, '5');
+        assert.strictEqual(engine.isEvaluated, true);
+
+        // Chaining with operator
+        engine.appendOperator('+');
+        assert.strictEqual(engine.isEvaluated, false);
+        engine.appendNumber('4');
+        const res2 = engine.calculate();
+        assert.strictEqual(res2.result, '9');
+      });
+
+      it("should start a fresh calculation if entering number after equals", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('2');
+        engine.appendOperator('+');
+        engine.appendNumber('3');
+        engine.calculate(); // result 5
+
+        // Typing a new number resets
+        engine.appendNumber('9');
+        assert.strictEqual(engine.exprTokens.length, 1);
+        assert.strictEqual(engine.exprTokens[0], '9');
+      });
+
+      it("should handle backspace correctly", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('1');
+        engine.appendNumber('2');
+        engine.appendNumber('3');
+        engine.backspace();
+        assert.strictEqual(engine.exprTokens[0], '12');
+        engine.backspace();
+        assert.strictEqual(engine.exprTokens[0], '1');
+        engine.backspace();
+        assert.strictEqual(engine.exprTokens.length, 0);
+      });
+
+      it("should clear everything on clearAll()", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('42');
+        engine.appendOperator('+');
+        engine.appendNumber('8');
+        engine.clearAll();
+        assert.strictEqual(engine.exprTokens.length, 0);
+        assert.strictEqual(engine.isEvaluated, false);
+        assert.strictEqual(engine.getDisplayResult(), '0');
+      });
+
+      it("should handle error gracefully and set state on invalid calculation", () => {
+        const engine = new CalculatorEngine();
+        engine.appendNumber('5');
+        engine.appendOperator('/');
+        engine.appendNumber('0');
+        const res = engine.calculate();
+        assert.strictEqual(res.result, 'Error');
+        assert.strictEqual(engine.lastResult, 'Error');
+      });
+    });
+
+    // ==========================================
+    // TEST RUNNER EXECUTION
+    // ==========================================
+
+    let currentFilter = 'all';
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderTests();
+    }
+
+    let globalResults = {
+      total: 0,
+      passed: 0,
+      failed: 0,
+      duration: 0,
+      suites: []
+    };
+
+    function runAllTests() {
+      const startTime = performance.now();
+      let totalTests = 0;
+      let totalPassed = 0;
+      let totalFailed = 0;
+
+      const suiteResults = [];
+      const cliLog = [];
+      cliLog.push("=================================================");
+      cliLog.push("  SCIENTIFIC CALCULATOR AUTOMATED TEST RESULTS   ");
+      cliLog.push("=================================================");
+
+      suites.forEach(suite => {
+        const sResult = {
+          name: suite.name,
+          tests: [],
+          passed: 0,
+          failed: 0
+        };
+
+        cliLog.push(`\n▶ Suite: ${suite.name}`);
+
+        suite.tests.forEach(test => {
+          totalTests++;
+          const tStart = performance.now();
+          let pass = true;
+          let error = null;
+
+          try {
+            test.fn();
+            totalPassed++;
+            sResult.passed++;
+            cliLog.push(`  ✔ PASS: ${test.name}`);
+          } catch (err) {
+            pass = false;
+            error = err.message;
+            totalFailed++;
+            sResult.failed++;
+            cliLog.push(`  ✖ FAIL: ${test.name}\n         Error: ${err.message}`);
+          }
+
+          const tDuration = (performance.now() - tStart).toFixed(2);
+          sResult.tests.push({
+            name: test.name,
+            pass,
+            error,
+            duration: tDuration
+          });
+        });
+
+        suiteResults.push(sResult);
+      });
+
+      const totalDuration = (performance.now() - startTime).toFixed(1);
+
+      globalResults = {
+        total: totalTests,
+        passed: totalPassed,
+        failed: totalFailed,
+        duration: totalDuration,
+        suites: suiteResults
+      };
+
+      // Expose to window for headless testing extraction
+      window.__TEST_RESULTS__ = globalResults;
+
+      // Update Header Stats
+      document.getElementById('stat-total').textContent = totalTests;
+      document.getElementById('stat-passed').textContent = totalPassed;
+      document.getElementById('stat-failed').textContent = totalFailed;
+      document.getElementById('stat-time').textContent = `${totalDuration}ms`;
+      document.getElementById('filter-fail-count').textContent = totalFailed;
+
+      cliLog.push("\n-------------------------------------------------");
+      cliLog.push(`SUMMARY: ${totalPassed}/${totalTests} Passed | ${totalFailed} Failed | Duration: ${totalDuration}ms`);
+      cliLog.push("-------------------------------------------------");
+
+      document.getElementById('console-summary').textContent = cliLog.join('\n');
+      console.log(cliLog.join('\n'));
+
+      renderTests();
+    }
+
+    function renderTests() {
+      const container = document.getElementById('test-suites');
+      container.innerHTML = '';
+
+      globalResults.suites.forEach(s => {
+        const visibleTests = s.tests.filter(t => {
+          if (currentFilter === 'fail') return !t.pass;
+          if (currentFilter === 'pass') return t.pass;
+          return true;
+        });
+
+        if (visibleTests.length === 0 && currentFilter !== 'all') return;
+
+        const card = document.createElement('div');
+        card.className = 'suite-card';
+
+        const header = document.createElement('div');
+        header.className = 'suite-header';
+        header.innerHTML = `
+          <div class="suite-title">${s.name}</div>
+          <div class="suite-summary">
+            <span>${s.passed}/${s.tests.length} Passed</span>
+            ${s.failed > 0 ? `<span class="badge badge-fail">${s.failed} Failed</span>` : `<span class="badge badge-pass">All Passed</span>`}
+          </div>
+        `;
+        card.appendChild(header);
+
+        const list = document.createElement('ul');
+        list.className = 'test-list';
+
+        visibleTests.forEach(t => {
+          const item = document.createElement('li');
+          item.className = 'test-item';
+          item.innerHTML = `
+            <div class="test-main">
+              <div class="test-desc">${t.name}</div>
+              ${t.error ? `<div class="error-box"><strong>Failure:</strong> ${t.error}</div>` : ''}
+            </div>
+            <div>
+              <span class="badge ${t.pass ? 'badge-pass' : 'badge-fail'}">${t.pass ? 'PASS' : 'FAIL'}</span>
+            </div>
+          `;
+          list.appendChild(item);
+        });
+
+        card.appendChild(list);
+        container.appendChild(card);
+      });
+    }
+
+    // Auto-run on load
+    window.addEventListener('DOMContentLoaded', runAllTests);
+  </script>
+</body>
+
+</html>
